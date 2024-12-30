@@ -66,7 +66,7 @@ void RenderPreviewLine() {
         v2 aLineStart = lineEnd + (Normalize(a_dir) * game_state->balls[closest].radius);
         v2 bLineStart = lineEnd + (Normalize(b_dir) * game_state->balls[closest].radius);
 
-        float ballPreviewLength;;
+        float ballPreviewLength;
         ballPreviewLength = previewLength -
             DistanceBetween(game_state->cueBall->pos, firstLineEnd);
         a_dir = lineEnd + (Normalize(a_dir) * ballPreviewLength);

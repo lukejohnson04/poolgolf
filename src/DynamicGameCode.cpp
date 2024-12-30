@@ -22,12 +22,14 @@ v2 GetTileWorldPos(int posx, int posy) {
 
 #include "shapes.cpp"
 #include "ball.cpp"
+#include "camera.cpp"
 
 struct RenderState {
     Shader sh_texture;
     Shader sh_color;
 };
 
+const int MAP_SIZE = 64;
 
 struct GameState {
     game_assets assets;
@@ -49,13 +51,14 @@ struct GameState {
     float cueRotation = 0.f;
     float cuePower = 1.0f;
     float cueRotSpeed = 0.5f;
-    int tiles[64][64];
+    int tiles[MAP_SIZE][MAP_SIZE];
 
     i32 strokeCount = 0;
 
     v2 holePos;
 
     TTF_Font *m5x7 = nullptr;
+    Camera camera;
 
     generic_drawable strokeText;
 };
@@ -70,14 +73,17 @@ void LoadRenderState(RenderState *st) {
     st->sh_color = CreateShader("color.vert","color.frag");
     
     glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 view = CalculateCameraViewMatrix(&game_state->camera);
     
     UseShader(&game_state->rst.sh_color);
     st->sh_color.UniformM4fv("projection",projection);
     st->sh_color.UniformM4fv("model",model);
+    st->sh_color.UniformM4fv("view",view);
     UseShader(&game_state->rst.sh_texture);
     st->sh_texture.UniformM4fv("projection",projection);
     st->sh_texture.UniformColor("colorMod",{255,255,255,255});
     st->sh_texture.UniformM4fv("model",model);
+    st->sh_texture.UniformM4fv("view",view);
 }
 
 void ChangeStrokes(i32 count)
@@ -123,9 +129,9 @@ void InitializeGameMemory(GameMemory *memory) {
     // load map
     SDL_Surface *mp_surf = IMG_Load("res/levels.png");
     
-    for (int i=0; i<20; i++)
+    for (int i=0; i<MAP_SIZE; i++)
     {
-        for (int j=0; j<12; j++)
+        for (int j=0; j<MAP_SIZE; j++)
         {
             Color pixel = getPixel(mp_surf, i, j);
             game_state->tiles[i][j] = 0;
@@ -174,6 +180,34 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     // Update balls
     UpdateLevel(delta);
+
+    // move camera around
+    if (input->is_pressed[SDL_SCANCODE_J])
+    {
+        game_state->camera.pos.x -= 512.f * (1.0f / game_state->camera.zoom) * delta;
+    }
+    if (input->is_pressed[SDL_SCANCODE_L])
+    {
+        game_state->camera.pos.x += 512.f * (1.0f / game_state->camera.zoom) * delta;
+    }
+    if (input->is_pressed[SDL_SCANCODE_I])
+    {
+        game_state->camera.pos.y -= 512.f * (1.0f / game_state->camera.zoom) * delta;
+    }
+    if (input->is_pressed[SDL_SCANCODE_K])
+    {
+        game_state->camera.pos.y += 512.f * (1.0f / game_state->camera.zoom) * delta;
+    }
+
+    if (input->is_pressed[SDL_SCANCODE_1])
+    {
+        game_state->camera.zoom -= 1.f*delta;
+    }
+    if (input->is_pressed[SDL_SCANCODE_2])
+    {
+        game_state->camera.zoom += 1.f*delta;
+    }
+
     
     // <----------------------->
     //       RENDER BEGIN
@@ -190,18 +224,23 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     glClearColor(0.2f, 0.2f, 0.21f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    UseShader(&game_state->rst.sh_texture);
     glm::mat4 model = glm::mat4(1.0);
-    game_state->rst.sh_texture.UniformM4fv("model",model);
-    game_state->rst.sh_texture.Uniform1i("_texture",GetTexture("res/sprites.png"));
-    
-    model = glm::mat4(1.0);
-    game_state->rst.sh_texture.UniformM4fv("model",model);
+    glm::mat4 cameraView = CalculateCameraViewMatrix(&game_state->camera);
 
+    UseShader(&game_state->rst.sh_texture);
+    game_state->rst.sh_texture.UniformM4fv("model",model);
+    game_state->rst.sh_texture.UniformM4fv("view",cameraView);
+    game_state->rst.sh_texture.Uniform1i("_texture",GetTexture("res/sprites.png"));
+
+    UseShader(&game_state->rst.sh_color);
+    game_state->rst.sh_color.UniformM4fv("model",model);
+    game_state->rst.sh_color.UniformM4fv("view",cameraView);
+
+    UseShader(&game_state->rst.sh_texture);
     // background tiles
-    for (int i=0; i<20; i++)
+    for (int i=0; i<MAP_SIZE; i++)
     {
-        for (int j=0; j<12; j++)
+        for (int j=0; j<MAP_SIZE; j++)
         {
             v2 pos = GetTileWorldPos(i,j);
             iRect src = {game_state->tiles[i][j] != 0 ? 32 : 0,32,32,32};
@@ -269,6 +308,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     // Render stroke text
     UseShader(&game_state->rst.sh_texture);
+    game_state->rst.sh_texture.UniformM4fv("view", glm::mat4(1.0));
     game_state->rst.sh_texture.Uniform1i("_texture", game_state->strokeText.gl_texture);
     GL_DrawTexture(game_state->strokeText.bound, game_state->strokeText.getDrawRect());
 

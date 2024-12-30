@@ -322,27 +322,6 @@ generic_drawable GenerateTextObj(TTF_Font *font, std::string str, Color col={255
     return res;
 }
 
-
-struct camera_t {
-    v2 pos={0,0};
-    v2 size;
-    float zoom=1.0f;
-     
-    iRect get_draw_rect() {
-        return {(int)(pos.x-size.x/2),(int)(pos.y-size.y/2),(int)size.x,(int)size.y};
-    }
-
-    v2 get_offset() {
-        return pos - (v2(size.x/2.f,size.y/2.f));
-    }
-
-    v2 get_center() {
-        return pos + (v2(size.x/2.f,size.y/2.f));
-    }
-};
-
-
-
 Uint32 getPixelU32(SDL_Surface *surface, int x, int y) {
     int bpp = surface->format->BytesPerPixel;
     /* Here p is the address to the pixel we want to retrieve */
