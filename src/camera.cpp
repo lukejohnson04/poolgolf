@@ -7,6 +7,14 @@ struct Camera
     float zoom = 1.f;
 };
 
+struct Camera3D
+{
+    glm::vec3 pos;
+    glm::vec3 up;
+    float yaw;
+    float pitch;
+};
+
 glm::mat4 CalculateCameraViewMatrix(Camera *camera)
 {
     glm::mat4 view = glm::mat4(1.0);

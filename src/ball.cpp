@@ -178,7 +178,7 @@ void UpdateBall(Ball *ball, int tiles[][64], float delta)
     ball->vel = vel;
     for (int i = 0; i < 64; i++) {
         for (int n = 0; n < 64; n++) {
-            if (tiles[i][n] != 1) {
+            if (tiles[i][n] != 0) {
                 continue;
             }
             v2 tile_pos = GetTileWorldPos(i, n);

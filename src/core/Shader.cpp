@@ -95,6 +95,16 @@ struct Shader {
     void Uniform4f(const GLchar *name, float a, float b, float c, float d) {
         glUniform4f(Uniform(name),a,b,c,d);
     }
+
+
+    void Uniform2f(const GLchar *name, float a, float b) {
+        glUniform2f(Uniform(name),a,b);
+    }
+
+    void Uniform2f(const GLchar *name, v2 a) {
+        glUniform2f(Uniform(name),a.x,a.y);
+    }
+
 };
 
 void UseShader(Shader *shader) {

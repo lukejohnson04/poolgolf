@@ -118,3 +118,23 @@ struct v2i {
     v2i(u32 X, u32 Y);
     v2i(v2 A);
 };
+
+struct v3
+{
+    union
+    {
+        struct
+        {
+            float x, y, z;
+        };
+        
+        struct
+        {
+            float r, g, b;
+        };
+    };
+
+    v3();
+    v3(float a, float b, float c);
+    v3(glm::vec3 a);
+};

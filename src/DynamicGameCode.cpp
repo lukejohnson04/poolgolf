@@ -58,7 +58,7 @@ struct GameState {
     v2 holePos;
 
     TTF_Font *m5x7 = nullptr;
-    Camera camera;
+    Camera3D camera;
 
     generic_drawable strokeText;
 };
@@ -66,14 +66,18 @@ struct GameState {
 global_variable GameState *game_state=nullptr;
 
 const glm::mat4 projection = glm::ortho(0.0f,
-        static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, -1.0f, 1.0f);
+                                        (float)WINDOW_WIDTH,
+                                        (float)WINDOW_HEIGHT,
+                                        0.0f,
+                                        -1.0f, 1.0f);
 
 void LoadRenderState(RenderState *st) {
     st->sh_texture = CreateShader("texture.vert","texture.frag");
     st->sh_color = CreateShader("color.vert","color.frag");
     
     glm::mat4 model = glm::mat4(1.0f);
-    glm::mat4 view = CalculateCameraViewMatrix(&game_state->camera);
+    glm::mat4 view = glm::mat4(1.0f);
+    //glm::mat4 view = CalculateCameraViewMatrix(&game_state->camera);
     
     UseShader(&game_state->rst.sh_color);
     st->sh_color.UniformM4fv("projection",projection);
@@ -104,8 +108,10 @@ void ChangeStrokes(i32 count)
 void InitializeGameMemory(GameMemory *memory) {
     *game_state = {};
 
-    LoadRenderState(&game_state->rst);
+    glEnable(GL_DEPTH_TEST);
 
+    LoadRenderState(&game_state->rst);
+    
     srand((u32)time(0));
 
     game_state->m5x7 = TTF_OpenFont("res/m5x7.ttf",16);
@@ -113,18 +119,10 @@ void InitializeGameMemory(GameMemory *memory) {
     game_state->cueBall = &game_state->balls[0];
 
     game_state->ballCount++;
-    game_state->cueBall->pos = {300.f,100.f};
     game_state->cueBall->radius = 16.f;
     game_state->cueBall->mass = PIf * game_state->cueBall->radius * game_state->cueBall->radius;
     game_state->cueBall->vel = {0.f,0.f};
     game_state->cueBall->active = true;
-    
-    game_state->ballCount++;
-    game_state->balls[1].pos = {500.f, 100.f};
-    game_state->balls[1].radius = 16.f;
-    game_state->balls[1].mass = PIf * game_state->balls[1].radius * game_state->balls[1].radius;
-    game_state->balls[1].vel = {0.f,0.f};
-    game_state->balls[1].active = true;
 
     // load map
     SDL_Surface *mp_surf = IMG_Load("res/levels.png");
@@ -134,26 +132,29 @@ void InitializeGameMemory(GameMemory *memory) {
         for (int j=0; j<MAP_SIZE; j++)
         {
             Color pixel = getPixel(mp_surf, i, j);
-            game_state->tiles[i][j] = 0;
+            game_state->tiles[i][j] = 1;
             if (pixel == COLOR_BLACK)
             {
-                game_state->tiles[i][j] = 1;
+                game_state->tiles[i][j] = 0;
             } else if (pixel == COLOR_YELLOW)
             {
-                game_state->holePos = {i*64.f, j*64.f};
-            } else if (pixel == COLOR_WHITE)
-            {
-                game_state->cueBall->pos = {i*64.f, j*64.f};
+                game_state->holePos = {i, j};
             } else if (pixel == COLOR_RED)
             {
-                game_state->balls[1].pos = {i*64.f, j*64.f};
+                game_state->cueBall->pos = {i, j};
+            } else
+            {
+                game_state->tiles[i][j] = 1;
             }
         }
     }
     SDL_FreeSurface(mp_surf);
 
     ChangeStrokes(0);
-    
+
+    game_state->camera.pos = glm::vec3(0.0f, 1.5f, 3.0f);
+    game_state->camera.up = glm::vec3(0.0f, 1.0f, 0.0f);
+
     memory->is_initialized = true;
     std::cout << "Initialized game memory\n";
 }
@@ -167,11 +168,148 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     private_global_assets = &game_state->assets;
     if (!input) {
         return;
-    }    
+    }
     
     if (game_memory->is_initialized == false) {
+        SDL_SetWindowGrab(window, SDL_TRUE);
+        SDL_SetRelativeMouseMode(SDL_TRUE);
         InitializeGameMemory(game_memory);
     }
+
+    // Render test 3D
+    static float res_timer=0.f;
+    res_timer += delta;
+    if (res_timer >= 0.1f) {
+        res_timer = 0.f;
+        CheckForResourceUpdates(&game_state->assets);
+    }
+    
+    glClearColor(0.3f, 0.8f, 1.0f, 1.0f);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
+    UseShader(&game_state->rst.sh_texture);
+    game_state->rst.sh_texture.Uniform1i("_texture", GetTexture("res/sprites.png"));
+
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 100.0f);
+    game_state->rst.sh_texture.UniformM4fv("projection", proj);    
+    glm::mat4 model = glm::mat4(1.0f);
+    float rot = (float)SDL_GetTicks() / 50.f;
+    model = glm::rotate(model, glm::radians(rot), glm::vec3(1.0f, 0.0f, 0.0f));
+    game_state->rst.sh_texture.UniformM4fv("model", model);
+
+    glm::mat4 view = glm::mat4(1.0f);
+
+    // mouse
+    float mouseSensitivity = 0.5f;
+    float xOffset = input->mouseXMotion * mouseSensitivity;
+    float yOffset = input->mouseYMotion * mouseSensitivity;
+    game_state->camera.yaw += xOffset;
+    game_state->camera.pitch -= yOffset;
+
+    if (game_state->camera.pitch > 89.0f)
+    {
+        game_state->camera.pitch = 89.0f;
+    }
+    if (game_state->camera.pitch < -89.0f)
+    {
+        game_state->camera.pitch = -89.0f;
+    }
+    glm::vec3 direction;
+    direction.x = cos(glm::radians(game_state->camera.yaw)) * cos(glm::radians(game_state->camera.pitch));
+    direction.y = sin(glm::radians(game_state->camera.pitch));
+    direction.z = sin(glm::radians(game_state->camera.yaw)) * cos(glm::radians(game_state->camera.pitch));
+    glm::vec3 cameraFront = glm::vec3(glm::normalize(direction));
+
+    float cameraSpeed = 0.05f;
+    if (input->is_pressed[SDL_SCANCODE_W])
+    {
+        game_state->camera.pos += cameraSpeed * cameraFront;
+    }
+    if (input->is_pressed[SDL_SCANCODE_S])
+    {
+        game_state->camera.pos -= cameraSpeed * cameraFront;
+        
+    }
+    if (input->is_pressed[SDL_SCANCODE_A])
+    {
+        game_state->camera.pos -= glm::normalize(glm::cross(cameraFront, game_state->camera.up)) * cameraSpeed;
+    }
+    if (input->is_pressed[SDL_SCANCODE_D])
+    {
+        game_state->camera.pos += glm::normalize(glm::cross(cameraFront, game_state->camera.up)) * cameraSpeed;
+    }
+
+    
+    view = glm::lookAt(game_state->camera.pos, game_state->camera.pos + cameraFront, game_state->camera.up);
+
+    game_state->rst.sh_texture.UniformM4fv("view", view);
+    
+    local_persist GLuint VAO, VBO;
+    local_persist bool generate=false;
+    if (generate == false)
+    {
+        generate = true;
+        glGenVertexArrays(1, &VAO);
+        glGenBuffers(1, &VBO);
+    }
+
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(CUBE_VERTICES), CUBE_VERTICES, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(0));
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER,0);
+
+    for(int x = 0; x < MAP_SIZE; x++)
+    {
+        for (int y = 0; y < MAP_SIZE; y++)
+        {
+            glm::vec3 position = glm::vec3((float)x, 0.0f, (float)y);
+            
+            v2 uv_offset, uv_scale;
+            iRect source = {0,32,32,32};
+            if (game_state->tiles[x][y] == 0)
+            {
+                source = {32,32,32,32};
+                position.y += 1.0f;
+            }
+
+            GetUvCoordinates(source, &uv_offset, &uv_scale);
+
+            game_state->rst.sh_texture.Uniform2f("u_uvOffset",uv_offset);
+            game_state->rst.sh_texture.Uniform2f("u_uvScale",uv_scale);
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, position);
+            game_state->rst.sh_texture.UniformM4fv("model", model);
+
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+            
+        }
+    }
+
+    // Draw ball (as a cube lol)
+    glm::vec3 position = glm::vec3(game_state->cueBall->pos.x, 1.f, game_state->cueBall->pos.y);
+
+    v2 uv_offset, uv_scale;
+    GetUvCoordinates({0,0,32,32},&uv_offset,&uv_scale);
+    game_state->rst.sh_texture.Uniform2f("u_uvOffset",uv_offset);
+    game_state->rst.sh_texture.Uniform2f("u_uvScale",uv_scale);
+    model = glm::mat4(1.0f);
+    
+    model = glm::translate(model, position);
+    float ballScale = (game_state->cueBall->radius*2.f) / 64.f;
+    model = glm::scale(model, glm::vec3(ballScale, ballScale, ballScale));
+    game_state->rst.sh_texture.UniformM4fv("model", model);
+
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    SDL_GL_SwapWindow(window);
+}
+/*
+
     
     // <----------------------->
     //       UPDATE BEGIN
@@ -243,7 +381,11 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         for (int j=0; j<MAP_SIZE; j++)
         {
             v2 pos = GetTileWorldPos(i,j);
-            iRect src = {game_state->tiles[i][j] != 0 ? 32 : 0,32,32,32};
+            iRect src = {32,32,32,32};
+            if (game_state->tiles[i][j] != 0)
+            {
+                src.x = 0;
+            }
             GL_DrawTexture(src,{i*64,j*64,64,64});
         }
     }
@@ -306,6 +448,17 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         RenderPreviewLine();        
     }
 
+    // Let's draw a cube
+    UseShader(&game_state->rst.sh_texture);
+    glm::mat4 proj2 = glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 100.0f);
+    game_state->rst.sh_texture.UniformM4fv("projection",proj2);
+    glm::mat4 view = glm::mat4(1.0f);
+    view = glm::translate(view, glm::vec3(0.f,0.f,-3.0f));
+    game_state->rst.sh_texture.UniformM4fv("view",view);
+    
+    GL_DrawTexture({64,32,32,32},{256,256,64,64});
+    game_state->rst.sh_texture.UniformM4fv("projection",projection);
+
     // Render stroke text
     UseShader(&game_state->rst.sh_texture);
     game_state->rst.sh_texture.UniformM4fv("view", glm::mat4(1.0));
@@ -315,7 +468,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
     SDL_GL_SwapWindow(window);
 }
-
+*/
 #if defined __cplusplus
 extern "C"
 #endif

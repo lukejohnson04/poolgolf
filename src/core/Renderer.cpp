@@ -9,6 +9,50 @@ const Color COLOR_GREEN = Color(0,255,0,255);
 const Color COLOR_YELLOW = Color(255,255,0,255);
 const Color COLOR_TRANSPARENT = Color(0,0,0,0);
 
+const float CUBE_VERTICES[] = {
+    -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+    0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+    0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+    0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+    0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+    0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+    0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+    0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+    0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+};
+
 
 v2i global_draw_offset={0,0};
 
@@ -52,7 +96,7 @@ void GL_DrawRect(iRect rect) {
     glBindVertexArray(0);    
 }
 
-void GL_DrawTexture(iRect source, iRect dest, bool flip_x=false, bool flip_y=false) {
+void GL_DrawTexture(iRect source, fRect dest, bool flip_x=false, bool flip_y=false) {
     float u1 = 0.0f;
     float u2 = 1.0f;
     float v1 = 0.0f;
@@ -103,74 +147,6 @@ void GL_DrawTexture(iRect source, iRect dest, bool flip_x=false, bool flip_y=fal
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     glBindVertexArray(0);
 }
-
-/*
-void GL_DrawTextureEx(iRect src={0,0,0,0}, iRect dest={0,0,0,0}, bool flip_x=false, bool flip_y=false, float rotation=0) {
-    float u1= !flip_x ? 0.0f : 1.0f;
-    float u2= !flip_x ? 1.0f : 0.0f;
-    float v1= !flip_y ? 0.0f : 1.0f;
-    float v2= !flip_y ? 1.0f : 0.0f;
-
-    v2i tex_size = {0,0};
-    if (dest.w==0 || src.w!=0) {
-        // store this info in some data structure maybe?
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &tex_size.x);
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &tex_size.y);
-        if (src.w!=0) {
-            (flip_x ? u2 : u1) = (float)src.x / (float)tex_size.x;
-            (flip_x ? u1 : u2) = (float)(src.x + src.w) / (float)tex_size.x;
-            (flip_y ? v2 : v1) = (float)src.y / (float)tex_size.y;
-            (flip_y ? v1 : v2) = (float)(src.y + src.h) / (float)tex_size.y;
-        }
-    } if (dest.w==0) {
-        dest.w = tex_size.x;
-        dest.h = tex_size.y;
-    }
-    
-    float vertices[] = {
-        (float)dest.x,           (float)dest.y,        0.0f, u1, v1,
-        (float)dest.x+dest.w,    (float)dest.y,        0.0f, u2, v1,
-        (float)dest.x+dest.w,    (float)dest.y+dest.h, 0.0f, u2, v2,
-        (float)dest.x,           (float)dest.y+dest.h, 0.0f, u1, v2,
-    };
-        
-    glBindBuffer(GL_ARRAY_BUFFER, gl_vbuffers[TEXTURE_VBO]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // uniforms
-    GLint textureLoc = glGetUniformLocation(sh_textureProgram,"_texture");
-    glUniform1i(textureLoc,0);
-    
-    glm::mat4 model = glm::mat4(1.0f);
-    if (rotation != 0) {
-        glm::vec2 pos = glm::vec2(dest.x, dest.y);
-        float angleRadians = rotation;
-        // Calculate the center of the object for rotation
-        glm::vec2 size = glm::vec2(dest.w,dest.h);
-        glm::vec2 center = pos + size * 0.5f;
-        model = glm::translate(model, glm::vec3(center, 0.0f)); // Move pivot to center
-        model = glm::rotate(model, angleRadians, glm::vec3(0.0f, 0.0f, 1.0f)); // Rotate
-        model = glm::translate(model, glm::vec3(-center, 0.0f)); // Move pivot back
-    }
-    
-    GLint transformLoc = glGetUniformLocation(sh_textureProgram,"model");
-    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-    glBindVertexArray(gl_varrays[TEXTURE_VAO]);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(0));
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER,0);
-    
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-    glBindVertexArray(0);
-    model = glm::mat4(1.0f);
-    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(model));
-}
-*/
-
-
 
 glm::mat4 rotate_model_matrix(float angleRadians, fRect rect, v2 origin) {
     glm::mat4 model = glm::mat4(1.0f);
@@ -406,3 +382,19 @@ void GL_DrawLine(v2 p1, v2 p2) {
 
     glBindVertexArray(0);
 }
+
+internal
+void GetUvCoordinates(iRect source, v2 *uv_offset, v2 *uv_scale)
+{
+    v2i tex_size = {0,0};
+    bool flip_x = false;
+    bool flip_y = false;
+    if (source.w != 0) {
+        // store this info in some data structure maybe?
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &tex_size.x);
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &tex_size.y);
+    }
+    *uv_offset = v2((float)source.x / (float)tex_size.x, (float)source.y / (float)tex_size.y);
+    *uv_scale = v2((float)source.w / (float)tex_size.x, (float)source.h / (float)tex_size.y);
+}
+

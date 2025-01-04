@@ -1,4 +1,5 @@
 
+
 #pragma once
 
 #define MAX(a,b) ((a>=b)?(a):(b))
@@ -69,6 +70,15 @@ v2 operator + (v2 A, v2 B) {
     return res;
 }
 
+
+v3 operator + (v3 A, v3 B) {
+    v3 res;
+    res.x = A.x + B.x;
+    res.y = A.y + B.y;
+    res.z = A.z + B.z;
+    return res;
+}
+
 v2i operator - (v2i A, v2i B) {
     v2i res;
     res.x = A.x - B.x;
@@ -83,6 +93,16 @@ v2 operator - (v2 A, v2 B) {
     return res;
 }
 
+
+v3 operator - (v3 A, v3 B) {
+    v3 res;
+    res.x = A.x - B.x;
+    res.y = A.y - B.y;
+    res.z = A.z - B.z;
+    return res;
+}
+
+
 v2i &operator += (v2i &A, v2i B) {
     A = A + B;
     return A;
@@ -93,6 +113,13 @@ v2 &operator += (v2 &A, v2 B) {
     return A;
 }
 
+
+v3 &operator += (v3 &A, v3 B) {
+    A = A + B;
+    return A;
+}
+
+
 v2i &operator -= (v2i &A, v2i B) {
     A = A - B;
     return A;
@@ -102,6 +129,13 @@ v2 &operator -= (v2 &A, v2 B) {
     A = A - B;
     return A;
 }
+
+
+v3 &operator -= (v3 &A, v3 B) {
+    A = A - B;
+    return A;
+}
+
 
 // Number multiplication
 v2 operator * (v2 A, float B) {
@@ -122,6 +156,28 @@ v2 operator * (v2 A, i32 B) {
     return Result;
 }
 
+
+v3 operator * (v3 A, float B) {
+    v3 Result;
+    
+    Result.x = A.x * B;
+    Result.y = A.y * B;
+    Result.z = A.z * B;
+    
+    return Result;
+}
+
+v3 operator * (v3 A, i32 B) {
+    v3 Result;
+    
+    Result.x = A.x * B;
+    Result.y = A.y * B;
+    Result.z = A.z * B;
+    
+    return Result;
+}
+
+
 v2i operator * (v2i A, i32 B) {
     v2i Result;
     
@@ -141,6 +197,19 @@ v2 &operator *= (v2 &A, i32 B) {
     return A;
 }
 
+
+v3 &operator *= (v3 &A, float B) {
+    A = A * B;
+    return A;
+}
+
+
+v3 &operator *= (v3 &A, i32 B) {
+    A = A * B;
+    return A;
+}
+
+
 v2i &operator *= (v2i &A, i32 B) {
     A = A * B;
     return A;
@@ -152,6 +221,11 @@ bool operator==(v2 A, v2 B) {
     return A.x==B.x && A.y==B.y;
 }
 
+bool operator==(v3 A, v3 B) {
+    return A.x==B.x && A.y==B.y && A.z==B.z;
+}
+
+
 bool operator==(v2i A, v2i B) {
     return A.x==B.x && A.y==B.y;
 }
@@ -161,6 +235,11 @@ bool operator!=(v2 A, v2 B) {
     return A.x!=B.x || A.y!=B.y;
 }
 
+bool operator!=(v3 A, v3 B) {
+    return A.x!=B.x || A.y!=B.y || A.z!=B.z;
+}
+
+
 bool operator!=(v2i A, v2i B) {
     return A.x!=B.x || A.y!=B.y;
 }
@@ -169,6 +248,11 @@ bool operator!=(v2i A, v2i B) {
 v2 operator - (v2 A) {
     return {-A.x, -A.y};
 }
+
+v3 operator - (v3 A) {
+    return {-A.x, -A.y, -A.z};
+}
+
 
 v2i operator - (v2i A) {
     return {-A.x, -A.y};
@@ -182,6 +266,11 @@ float Length(v2 A) {
     return sqrt((A.x * A.x) + (A.y * A.y));
 }
 
+float Length(v3 A) {
+    return sqrt((A.x * A.x) + (A.y * A.y) + (A.z * A.z));
+}
+
+
 // Normalize
 v2 Normalize(v2 A) {
     if (A == v2{0,0}) {
@@ -190,6 +279,15 @@ v2 Normalize(v2 A) {
     float len = Length(A);
     return v2(A.x / len, A.y / len);
 }
+
+v3 Normalize(v3 A) {
+    if (A == v3{0,0,0}) {
+        return A;
+    }
+    float len = Length(A);
+    return v3(A.x / len, A.y / len, A.z / len);
+}
+
 
 // Perpendicular
 v2 Perpendicular(v2 A) {
@@ -386,3 +484,14 @@ v2 GetClosestPointOnLine(v2 l1, v2 l2, v2 point) {
 
     return ans;
 }
+
+v3::v3()
+{
+    x = 0.f;
+    y = 0.f;
+    z = 0.f;
+}
+
+v3::v3(float a, float b, float c) : x(a), y(b), z(c) {}
+
+v3::v3(glm::vec3 a) : x(a.x), y(a.y), z(a.z) {}
