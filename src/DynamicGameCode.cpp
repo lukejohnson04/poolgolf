@@ -290,8 +290,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             model = glm::translate(model, position);
             game_state->rst.sh_texture.UniformM4fv("model", model);
 
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-            
+            glDrawArrays(GL_TRIANGLES, 0, 36);            
         }
     }
     
@@ -352,11 +351,25 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     glEnableVertexAttribArray(0);
 
     glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // Draw flat 2d rectangle
+    UseShader(&game_state->rst.sh_texture);
+    model = glm::mat4(1.0);
+    game_state->rst.sh_texture.UniformM4fv("model", model);
+    game_state->rst.sh_texture.UniformM4fv("projection", projection);
+    view = glm::mat4(1.0);
+    game_state->rst.sh_texture.UniformM4fv("view", view);
+
+    iRect source = {0,0,32,32};
+    GetUvCoordinates(source, &uv_offset, &uv_scale);
+    game_state->rst.sh_texture.Uniform2f("u_uvOffset", uv_offset);
+    game_state->rst.sh_texture.Uniform2f("u_uvScale", uv_scale);
+    GL_DrawTexture({0,0,32,32});
     
     SDL_GL_SwapWindow(window);
 }
-/*
 
+/*
     
     // <----------------------->
     //       UPDATE BEGIN

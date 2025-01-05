@@ -1,13 +1,5 @@
-
+#include "Renderer.h"
 #include "Shader.cpp"
-
-const Color COLOR_BLACK = Color(0,0,0,255);
-const Color COLOR_WHITE = Color(255,255,255,255);
-const Color COLOR_RED = Color(255,0,0,255);
-const Color COLOR_BLUE = Color(0,0,255,255);
-const Color COLOR_GREEN = Color(0,255,0,255);
-const Color COLOR_YELLOW = Color(255,255,0,255);
-const Color COLOR_TRANSPARENT = Color(0,0,0,0);
 
 const float CUBE_VERTICES[] = {
     -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
@@ -98,21 +90,8 @@ float CUBE_VERTICES_NORMALS[] = {
     -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
 };
 
-v2i global_draw_offset={0,0};
-
-void GL_PushOffset(v2i offset) {
-    global_draw_offset = offset;
-}
-
-void GL_PopOffset() {
-    global_draw_offset={0,0};
-}
-
-
+internal
 void GL_DrawRect(iRect rect) {
-    rect.x += global_draw_offset.x;
-    rect.y += global_draw_offset.y;
-
     float vertices[] = {
         (float)rect.x+rect.w,    (float)rect.y,           0.0f,
         (float)rect.x+rect.w,    (float)rect.y+rect.h,    0.0f,
@@ -140,36 +119,15 @@ void GL_DrawRect(iRect rect) {
     glBindVertexArray(0);    
 }
 
-void GL_DrawTexture(iRect source, fRect dest, bool flip_x=false, bool flip_y=false) {
-    float u1 = 0.0f;
-    float u2 = 1.0f;
-    float v1 = 0.0f;
-    float v2 = 1.0f;
-
-    dest.x += global_draw_offset.x;
-    dest.y += global_draw_offset.y;
-
-    v2i tex_size = {0,0};
-    if (source.w!=0) {
-        // store this info in some data structure maybe?
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &tex_size.x);
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &tex_size.y);
-        if (source.w!=0) {
-            (flip_x ? u2 : u1) = (float)source.x / (float)tex_size.x;
-            (flip_x ? u1 : u2) = (float)(source.x + source.w) / (float)tex_size.x;
-            (flip_y ? v2 : v1) = (float)source.y / (float)tex_size.y;
-            (flip_y ? v1 : v2) = (float)(source.y + source.h) / (float)tex_size.y;
-        }
-    }
-    
+internal
+void GL_DrawTexture(fRect dest, bool flip_x, bool flip_y) {
     float vertices[] = {
-        (float)dest.x,           (float)dest.y,        0.0f, u1, v1,
-        (float)dest.x+dest.w,    (float)dest.y,        0.0f, u2, v1,
-        (float)dest.x+dest.w,    (float)dest.y+dest.h, 0.0f, u2, v2,
-        (float)dest.x,           (float)dest.y+dest.h, 0.0f, u1, v2,
+        (float)dest.x,           (float)dest.y,        0.0f, 0.0f, 0.0f,
+        (float)dest.x+dest.w,    (float)dest.y,        0.0f, 1.0f, 0.0f,
+        (float)dest.x+dest.w,    (float)dest.y+dest.h, 0.0f, 1.0f, 1.0f,
+        (float)dest.x,           (float)dest.y+dest.h, 0.0f, 0.0f, 1.0f,
     };
     
-    // uniforms
     local_persist GLuint VAO,VBO;
     local_persist bool generated=false;
     if (!generated) {
@@ -289,7 +247,8 @@ internal void GL_load_texture_from_sdl_surface(GLuint tex,SDL_Surface *tex_surf)
 
 
 
-internal void generate_text(GLuint tex, TTF_Font *font,std::string str,Color col,i32 wrap) {
+internal
+void generate_text(GLuint tex, TTF_Font *font, std::string str, Color col, i32 wrap) {
     SDL_Surface* temp_surface =
         TTF_RenderText_Solid_Wrapped(font, str.c_str(),*(SDL_Color*)&col, wrap);
     temp_surface = SDL_ConvertSurfaceFormat(temp_surface, SDL_PIXELFORMAT_ARGB8888, 0);
@@ -304,28 +263,21 @@ internal void generate_text(GLuint tex, TTF_Font *font,std::string str,Color col
     SDL_FreeSurface(temp_surface);
 }
 
-struct generic_drawable {
-    v2i position={0,0};
-    GLuint gl_texture=NULL;
-    v2 scale={1,1};
-    iRect bound = {0,0,0,0};
-
-    iRect getDrawRect() {
-        if (bound.w==0||bound.h==0) {
-            glBindTexture(GL_TEXTURE_2D,gl_texture);
-            // mipmap level is 0
-            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &bound.w);
-            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &bound.h);
-        }
-        int w=bound.w,h=bound.h;
-        iRect res={position.x,position.y,(int)((float)w*scale.x),(int)((float)h*scale.y)};
-        return res;
+iRect generic_drawable::getDrawRect() {
+    if (bound.w==0||bound.h==0) {
+        glBindTexture(GL_TEXTURE_2D,gl_texture);
+        // mipmap level is 0
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &bound.w);
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &bound.h);
     }
-};
+    int w=bound.w,h=bound.h;
+    iRect res={position.x,position.y,(int)((float)w*scale.x),(int)((float)h*scale.y)};
+    return res;
+}
 
 
 internal
-generic_drawable GenerateTextObj(TTF_Font *font, std::string str, Color col={255,255,255,255}, GLuint tex=NULL) {
+generic_drawable GenerateTextObj(TTF_Font *font, std::string str, Color col, GLuint tex) {
     generic_drawable res;
     SDL_Surface* temp_surface =
         TTF_RenderText_Solid(font, str.c_str(),*(SDL_Color*)&col);

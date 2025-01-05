@@ -87,7 +87,12 @@ void RenderPreviewLine() {
         UseShader(&game_state->rst.sh_texture);
         iRect outline_rect = { 64, 0, 32, 32 };
         iRect outline_dest = { (i32)lineEnd.x-16, (i32)lineEnd.y-16, 32, 32 };
-        GL_DrawTexture(outline_rect, outline_dest);
+        v2 uv_offset, uv_scale;
+        GetUvCoordinates(outline_rect, &uv_offset, &uv_scale);
+        game_state->rst.sh_texture.Uniform2f("u_uvOffset", uv_offset);
+        game_state->rst.sh_texture.Uniform2f("u_uvScale", uv_scale);
+        
+        GL_DrawTexture(outline_dest);
     }
 }
 
