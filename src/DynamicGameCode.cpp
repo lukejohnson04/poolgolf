@@ -27,6 +27,7 @@ v2 GetTileWorldPos(int posx, int posy) {
 struct RenderState {
     Shader sh_texture;
     Shader sh_color;
+    Shader sh_light;
 };
 
 const int MAP_SIZE = 64;
@@ -74,6 +75,7 @@ const glm::mat4 projection = glm::ortho(0.0f,
 void LoadRenderState(RenderState *st) {
     st->sh_texture = CreateShader("texture.vert","texture.frag");
     st->sh_color = CreateShader("color.vert","color.frag");
+    st->sh_light = CreateShader("light.vert","light.frag");
     
     glm::mat4 model = glm::mat4(1.0f);
     glm::mat4 view = glm::mat4(1.0f);
@@ -190,7 +192,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     UseShader(&game_state->rst.sh_texture);
     game_state->rst.sh_texture.Uniform1i("_texture", GetTexture("res/sprites.png"));
 
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 proj = glm::perspective(glm::radians(80.0f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 100.0f);
     game_state->rst.sh_texture.UniformM4fv("projection", proj);    
     glm::mat4 model = glm::mat4(1.0f);
     float rot = (float)SDL_GetTicks() / 50.f;
@@ -200,9 +202,10 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     glm::mat4 view = glm::mat4(1.0f);
 
     // mouse
-    float mouseSensitivity = 0.5f;
+    float mouseSensitivity = 1.0f;
     float xOffset = input->mouseXMotion * mouseSensitivity;
     float yOffset = input->mouseYMotion * mouseSensitivity;
+    
     game_state->camera.yaw += xOffset;
     game_state->camera.pitch -= yOffset;
 
@@ -244,13 +247,15 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     game_state->rst.sh_texture.UniformM4fv("view", view);
     
-    local_persist GLuint VAO, VBO;
+    local_persist GLuint VAO, VBO, lightVAO, lightVBO;
     local_persist bool generate=false;
     if (generate == false)
     {
         generate = true;
         glGenVertexArrays(1, &VAO);
+        glGenVertexArrays(1, &lightVAO);
         glGenBuffers(1, &VBO);
+        glGenBuffers(1, &lightVBO);
     }
 
     glBindVertexArray(VAO);
@@ -289,9 +294,10 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             
         }
     }
-
+    
     // Draw ball (as a cube lol)
     glm::vec3 position = glm::vec3(game_state->cueBall->pos.x, 1.f, game_state->cueBall->pos.y);
+    glm::vec3 lightPosition = glm::vec3(position.x+1.5f,position.y+1.5f,position.z+2.f);
 
     v2 uv_offset, uv_scale;
     GetUvCoordinates({0,0,32,32},&uv_offset,&uv_scale);
@@ -306,6 +312,47 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
+    // Draw a solid colored cube
+    UseShader(&game_state->rst.sh_color);
+    game_state->rst.sh_color.UniformM4fv("view",view);
+    game_state->rst.sh_color.UniformM4fv("projection",proj);
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(position.x,position.y+1.f,position.z));
+    game_state->rst.sh_color.UniformM4fv("model", model);
+    game_state->rst.sh_color.Uniform3f("objectColor", v3(1.0f,0.5f,0.31f));
+    game_state->rst.sh_color.Uniform3f("lightColor", v3(1.0f,1.0f,1.0f));
+    game_state->rst.sh_color.Uniform3f("lightPos", lightPosition);
+    game_state->rst.sh_color.Uniform3f("viewPos", game_state->camera.pos);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(CUBE_VERTICES_NORMALS), CUBE_VERTICES_NORMALS, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(0));
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER,0);
+
+    
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // Draw light source
+    UseShader(&game_state->rst.sh_light);
+    game_state->rst.sh_light.UniformM4fv("view",view);
+    game_state->rst.sh_light.UniformM4fv("projection",proj);
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, lightPosition);
+    model = glm::scale(model, glm::vec3(0.25f, 0.25f, 0.25f));
+    game_state->rst.sh_light.UniformM4fv("model",model);
+
+    glBindVertexArray(lightVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    
     SDL_GL_SwapWindow(window);
 }
 /*

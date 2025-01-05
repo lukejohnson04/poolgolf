@@ -28,7 +28,7 @@
 (setq casey-font "outline-DejaVu Sans Mono")
 
 (when casey-win32 
-  (setq casey-makescript "c:/dev/Prototypes/poolgolf/build/build.bat")
+  (setq casey-makescript "build\\build.bat")
   (setq casey-font "outline-Liberation Mono")
 )
 
@@ -470,7 +470,7 @@
 (defun find-project-directory-recursive ()
   "Recursively search for a makefile."
   (interactive)
-  (if (file-exists-p casey-makescript)
+  (if (file-exists-p casey-makescript) t
       (cd "../")
       (find-project-directory-recursive)))
 
@@ -496,12 +496,15 @@
   (find-project-directory-recursive)
   (setq last-compilation-directory default-directory)))
 
-(defun make-without-asking ()
-  "Make the current build."
+(setq compilation-read-command nil)
+(defun project-compile ()
+  "Compile from project root."
   (interactive)
-  (compile casey-makescript)
+  (let* ((pr (project-current t))
+         (default-directory (project-root pr)))
+    (compile "build\\build.bat"))
   (other-window 1))
-(define-key global-map "\em" 'make-without-asking)
+(define-key global-map "\em" 'project-compile)
 
 ; Commands
 (set-variable 'grep-command "grep -irHn ")
@@ -596,3 +599,79 @@
   (set-cursor-color "#40FF40")
 )
 (add-hook 'window-setup-hook 'post-load-stuff t)
+
+
+(defun my-delete-backward-word (arg)
+  "Delete characters backward until encountering the start of a word, without adding to kill ring."
+  (interactive "p")
+  (let ((start (point)))
+    (backward-word arg)
+    (delete-region (point) start)))
+
+(defun my-delete-forward-word (arg)
+  "Delete characters forward until encountering the end of a word, without adding to kill ring."
+  (interactive "p")
+  (let ((start (point)))
+    (forward-word arg)
+    (delete-region start (point))))
+
+;; Bind these new functions to Ctrl+Backspace and Ctrl+Delete:
+(global-set-key [C-backspace] 'my-delete-backward-word)
+(global-set-key [C-delete]    'my-delete-forward-word)
+
+(defun move-line-up ()
+  "Move the current line up by one line."
+  (interactive)
+  (let ((col (current-column)))
+    ;; `transpose-lines' swaps the current line with the line below it.
+    (transpose-lines 1)
+    ;; After transposing, we move up two lines to re-center on the original line.
+    (previous-line 2)
+    ;; Restore cursor to original column.
+    (move-to-column col)))
+
+(defun move-line-down ()
+  "Move the current line down by one line."
+  (interactive)
+  (let ((col (current-column)))
+    ;; Move down one line so `transpose-lines` swaps the *next* line with the current one.
+    (forward-line 1)
+    (transpose-lines 1)
+    ;; Move back up one line.
+    (previous-line 1)
+    (move-to-column col)))
+
+;; Bind these to Alt+Up / Alt+Down:
+(global-set-key (kbd "M-<up>")   'move-line-up)
+(global-set-key (kbd "M-<down>") 'move-line-down)
+
+(defun duplicate-line-up ()
+  "Duplicate the current line above."
+  (interactive)
+  (let ((col (current-column))
+        (line-text (buffer-substring (line-beginning-position)
+                                     (line-end-position))))
+    ;; Go to the start of the line, open a blank line, and insert the text
+    (beginning-of-line)
+    (open-line 1) 
+    (insert line-text)
+    ;; Optionally move the cursor onto the new line:
+    ;; (previous-line 1)
+    (move-to-column col)))
+
+(defun duplicate-line-down ()
+  "Duplicate the current line below."
+  (interactive)
+  (let ((col (current-column))
+        (line-text (buffer-substring (line-beginning-position)
+                                     (line-end-position))))
+    ;; Go to the end of the line, newline, and insert the text
+    (end-of-line)
+    (newline)
+    (insert line-text)
+    ;; Optionally move back to the original line, or stay on the new one:
+    (move-to-column col)))
+
+;; Bind them to Alt+Shift+Up and Alt+Shift+Down:
+(global-set-key (kbd "M-S-<up>")   #'duplicate-line-up)
+(global-set-key (kbd "M-S-<down>") #'duplicate-line-down)

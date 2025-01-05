@@ -10,7 +10,7 @@ struct InputState {
     bool mouse_just_released;
     bool mouse_pressed;
 
-    i32 mouseXMotion,mouseYMotion;
+    i32 mouseXMotion, mouseYMotion;
 };
 
 void PollEvents(InputState *state, game_handle_event* callback, bool *running);
@@ -29,8 +29,6 @@ void PollEvents(InputState *state, game_handle_event *callback, bool *running) {
 
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
-        //ImGui_ImplSDL2_ProcessEvent(&e);
-        //auto &io = ImGui::GetIO();
 
         if (e.type == SDL_KEYDOWN && e.key.repeat == 0) {
             state->just_pressed[e.key.keysym.scancode] = true;
@@ -39,9 +37,6 @@ void PollEvents(InputState *state, game_handle_event *callback, bool *running) {
             state->just_released[e.key.keysym.scancode] = true;
             state->is_pressed[e.key.keysym.scancode] = false;
         } 
-        //if (io.WantCaptureMouse) {
-        //    continue;
-        //}
         
         if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
             state->mouse_pressed = true;
@@ -50,8 +45,8 @@ void PollEvents(InputState *state, game_handle_event *callback, bool *running) {
             state->mouse_pressed = false;
             state->mouse_just_released = true;
         } else if (e.type == SDL_MOUSEMOTION) {
-            state->mouseXMotion = e.motion.xrel;
-            state->mouseYMotion = e.motion.yrel;
+            state->mouseXMotion += e.motion.xrel;
+            state->mouseYMotion += e.motion.yrel;
         }
 
         Event proc_event;

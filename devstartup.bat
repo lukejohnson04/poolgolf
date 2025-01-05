@@ -1,9 +1,5 @@
 @echo off
-pushd build
-call "shell.bat"
-popd
-pushd misc
-call "emacs.bat"
-popd
+call "%VCVARS_PATH%\vcvarsall.bat" x64
+call "misc/emacs.bat"
 cd build
 cmd /k

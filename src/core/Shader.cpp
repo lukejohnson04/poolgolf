@@ -88,6 +88,10 @@ struct Shader {
         glUniformMatrix4fv(Uniform(name), 1, GL_FALSE, glm::value_ptr(value));
     }
 
+    void UniformM4fv(const GLchar *name, mat4 value) {
+        glUniformMatrix4fv(Uniform(name), 1, GL_FALSE, (GLfloat*)value.vals);
+    }
+
     void UniformColor(const GLchar *name, Color color) {
         glUniform4f(Uniform(name),((float)color.r/255.f),((float)color.g/255.f),((float)color.b/255.f),((float)color.a/255.f));
     }
@@ -96,13 +100,24 @@ struct Shader {
         glUniform4f(Uniform(name),a,b,c,d);
     }
 
-
     void Uniform2f(const GLchar *name, float a, float b) {
         glUniform2f(Uniform(name),a,b);
     }
 
     void Uniform2f(const GLchar *name, v2 a) {
         glUniform2f(Uniform(name),a.x,a.y);
+    }
+
+    void Uniform3f(const GLchar *name, v3 a) {
+        glUniform3f(Uniform(name),a.x,a.y,a.z);
+    }
+
+    void Uniform3f(const GLchar *name, float a, float b, float c) {
+        glUniform3f(Uniform(name),a, b, c);
+    }
+
+    void Uniform3f(const GLchar *name, glm::vec3 a) {
+        glUniform3f(Uniform(name), a.x, a.y, a.z);
     }
 
 };

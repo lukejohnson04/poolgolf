@@ -51,22 +51,6 @@ v2 BallGetCollisionPoint(Ball *a, Ball *b, v2 dir)
     return closest;
 }
 
-/*
-void BallSetVel(Ball *ball, int init_pos_x, int init_pos_y, int fin_pos_x, int fin_pos_y)
-{
-    float vec_len;
-    vec_len = (float)(sqrt(pow((double)(init_pos_x - fin_pos_x), 2) + pow((double)(init_pos_y - fin_pos_y), 2)));
-    
-    float forceX = (fin_pos_x - init_pos_x) / vec_len;
-    float forceY = (fin_pos_y - init_pos_y) / vec_len;
-    
-    vec_len = MAX(vec_len, 25.f);
-    vec_len = MIN(vec_len, 225.f);
-    vec_len /= 8.f;
-    ball->vel = v2(-forceX,-forceY) * vec_len;
-}
-*/
-
 void BallHandleCollision(Ball *a, Ball *b)
 {
     v2 closest = BallGetCollisionPoint(a, b, a->vel);
@@ -95,23 +79,6 @@ void BallHandleCollision(Ball *a, Ball *b)
 
     a->vel = a->vel - (collisionNormal * (impulse / a->mass));
     b->vel = b->vel + (collisionNormal * (impulse / b->mass));
-
-    /*
-    // just calculate simply for now
-    float mass1 = a->mass;
-    float mass2 = b->mass;
-
-    v2 dir = b->pos - a->pos;
-    dir = Normalize(dir);
-
-    float v1 = V2DotProduct(a->vel, dir);
-    float v2 = V2DotProduct(b->vel, dir);
-
-    float newV1 = (mass1 * v1 + mass2 * v2 - mass2 * (v1 - v2) * RESTITUTION) / (mass1 + mass2);
-    float newV2 = (mass1 * v1 + mass2 * v2 - mass1 * (v2 - v1) * RESTITUTION) / (mass1 + mass2);
-    a->vel = a->vel + (dir * (newV1 - v1));
-    b->vel = b->vel + (dir * (newV2 - v2));
-    */
 
     a->pos = a->pos + (Normalize(a->vel) * offset);
 }
@@ -166,14 +133,6 @@ void UpdateBall(Ball *ball, int tiles[][64], float delta)
         return;
     }
     vel = Normalize(vel) * len;
-
-    /*
-    if (ball->left() <= 0 || ball->right() >= 20*64 - 32) {
-        vel.x = -vel.x;
-    } if (ball->top() <= 0 || ball->bottom() >= 12 * 64 - 32) {
-        vel.y = -vel.y;
-    }
-    */
 
     ball->vel = vel;
     for (int i = 0; i < 64; i++) {

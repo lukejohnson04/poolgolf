@@ -89,8 +89,6 @@ Mix_Chunk *GetChunk(const std::string path) {
     return res->chunk;
 }
 
-
-
 internal
 bool ResourceWasUpdated(Resource *res) {
     struct stat file_data;

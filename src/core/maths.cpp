@@ -1,6 +1,4 @@
-
-
-#pragma once
+#include "maths.h"
 
 #define MAX(a,b) ((a>=b)?(a):(b))
 #define MIN(a,b) ((a<=b)?(a):(b))
@@ -495,3 +493,5 @@ v3::v3()
 v3::v3(float a, float b, float c) : x(a), y(b), z(c) {}
 
 v3::v3(glm::vec3 a) : x(a.x), y(a.y), z(a.z) {}
+
+

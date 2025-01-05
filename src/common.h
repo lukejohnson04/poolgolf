@@ -51,7 +51,7 @@ enum {
 
 struct Color {
     u8 r, g, b, a;
-    Color(u8 nr=0, u8 ng=0, u8 nb=0, u8 na=0) : r(nr), g(ng), b(nb), a(na) {}
+    Color(u8 nr=0, u8 ng=0, u8 nb=0, u8 na=255) : r(nr), g(ng), b(nb), a(na) {}
 
     u32 hex() {
         return (r << 24) | (g << 16) | (b << 8) | a;
@@ -79,62 +79,3 @@ inline bool operator != (Color left, Color right) {
 inline bool operator == (Color left, u32 right) {
     return left.hex() == right;
 }
-
-struct v2;
-struct v2i;
-
-struct v2 {
-    union {
-        struct {
-            float x, y;
-        };
-    
-        struct {
-            float u, v;
-        };
-    
-        float values[2];
-    };
-
-    v2();
-    v2(float X, float Y);
-    v2(i32 X, i32 Y);
-    v2(u32 X, u32 Y);
-    v2(v2i A);
-};
-
-struct v2i {
-    union {
-        struct {
-            i32 x, y;
-        };
-        
-        i32 values[2];
-    };
-
-    v2i();
-    v2i(float X, float Y);
-    v2i(i32 X, i32 Y);
-    v2i(u32 X, u32 Y);
-    v2i(v2 A);
-};
-
-struct v3
-{
-    union
-    {
-        struct
-        {
-            float x, y, z;
-        };
-        
-        struct
-        {
-            float r, g, b;
-        };
-    };
-
-    v3();
-    v3(float a, float b, float c);
-    v3(glm::vec3 a);
-};
