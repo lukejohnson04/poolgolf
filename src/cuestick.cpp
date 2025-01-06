@@ -66,17 +66,10 @@ void ControlCueStick(float delta)
         if (game_state->shootingMotionTimer >= 1.f)
         {
             game_state->roundState = GameState::BALL_MOVING;
-            game_state->ballStartPosition = game_state->cueBall->pos;
-            game_state->cueBall->vel = ConvertAngleToVec(game_state->cueRotation + PIf) * game_state->cuePower*0.25f;
-            ChangeStrokes(game_state->strokeCount + 1);
-        }
-    } else if (game_state->roundState == GameState::BALL_MOVING)
-    {
-        if (Length(game_state->cueBall->vel) < 0.001f)
-        {
-            game_state->cueBall->vel = {0.f,0.f};
-            game_state->roundState = GameState::AIMING;
-            game_state->cuePower = 0.f;
+            game_state->ballStartPosition = GetCurrentPlayer()->ball->pos;
+            GetCurrentPlayer()->ball->vel = ConvertAngleToVec(game_state->cueRotation + PIf) * game_state->cuePower*0.25f;
+            GetCurrentPlayer()->strokeCount++;
+            ChangeStrokes(GetCurrentPlayer(), GetCurrentPlayer()->strokeCount);
         }
     }
 }

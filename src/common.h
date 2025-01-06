@@ -1,6 +1,7 @@
 
 #pragma once
 #include <inttypes.h>
+#include <assert.h>
 
 #define FPS_MAX 60.0f
 #define FRAME_TIME_MS (1000.f / FPS_MAX)
@@ -30,6 +31,7 @@ typedef u16 entity_id;
 #define local_persist static
 #define global_variable static
 #define internal static
+#define Assert assert
 
 #define Kilobytes(size) (1024LL*size)
 #define Megabytes(size) (1024LL*Kilobytes(size))

@@ -105,6 +105,10 @@ void GL_DrawTexture(iRect source, iRect dest, bool flip_x=false, bool flip_y=fal
 }
 
 
+// Rect is the destination in world space pre rotation
+// Origin is relative to the rect itself (i.e. rect.x could be 250
+// but origin would be rect.w/2 to represent that it rotates
+// relative to halfway thru the rectangle on the x axis
 glm::mat4 rotate_model_matrix(float angleRadians, fRect rect, v2 origin) {
     glm::mat4 model = glm::mat4(1.0f);
     glm::vec2 pos = glm::vec2(rect.x, rect.y);

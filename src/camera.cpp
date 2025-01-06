@@ -15,6 +15,8 @@ struct Camera
         
         return res;
     }
+
+    v2 lerpTarget={0.f,0.f};
 };
 
 glm::mat4 CalculateCameraViewMatrix(Camera *camera)

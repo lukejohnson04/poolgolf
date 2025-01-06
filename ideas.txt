@@ -1,5 +1,7 @@
 Items
 
+You can use items BEFORE you move or AFTER you move
+
 Item where you can place an obstacle (potentially only in the way of your opponent) - Done
 Item where you can move the hole
 Item where you can move the opponents cue ball
@@ -7,6 +9,16 @@ Item where you swap places with the opponents cue ball
 Item where you can hit the opponents cue ball once - but you can't scratch
 Item that craters the opponents ball
 Item that lets you redo a shot
+- Note: There are several ways to implement. You could either take a shot, use
+	the redo, and then take another shot, or you could do this but then get
+	to decide which of the two shots you'd prefer. You could also use the
+	redo first, and then take two shots, picking the one you prefer.
+
+	Perhaps you could do either before or after. This would have a high
+	skill ceiling because you could decide to use the redo before and go for
+	a tricky shot, and if you miss you go for an easier one. It would act as
+	insurance, and give you the option of picking either of the two shots.
+	Or, you could just hold onto it until you mess up a shot, and then use it.
 Item that lets you time a spinner to create heavy wind in a certain direction
 
 Obstacles
@@ -15,3 +27,18 @@ Ramps - Done
 Windmills
 Rotating blocks
 Water - Done
+
+
+What happens when another player hits your ball off?
+Slamming the opponents ball off the map seems like an OP strategy. How can we make this a
+difficult decision for players as to whether or not they should do it?
+
+Options:
+	If you hit another players ball off, it spawns back where it first was.
+	If you hit another players ball off, it spawns on the edge of the water.
+	If you hit another players ball off, they can put their ball anywhere in a specific range.
+	If you hit another players ball off, they get a free stroke
+
+Some combination of these options would force players to weigh the risk of hitting another players
+ball hard, as if their ball is pushed to the edge of the map, it can add up to a full stroke to their
+score. However, if you hit their ball off, it could greatly help them or greatly harm you.

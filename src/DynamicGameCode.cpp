@@ -16,32 +16,9 @@
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
 
-inline
-v2 GetTileWorldPos(int posx, int posy) {
-    return v2(posx * 64.f, posy * 64.f);
-}
+#include "tile.cpp"
+#include "ability.h"
 
-enum TILE_TYPE
-{
-    TT_NONE,
-    WATER,
-    WALL,
-    GRASS,
-    DOWNHILL_RIGHT,
-    DOWNHILL_DOWN_RIGHT,
-    DOWNHILL_DOWN,
-    DOWNHILL_DOWN_LEFT,
-    DOWNHILL_LEFT,
-    DOWNHILL_UP_LEFT,
-    DOWNHILL_UP,
-    DOWNHILL_UP_RIGHT,
-    HOLE,
-};
-
-bool IsTileDownhill(i32 tile)
-{
-    return tile >= DOWNHILL_RIGHT && tile < DOWNHILL_RIGHT+8;
-}
 
 const int MAP_SIZE = 256;
 
@@ -51,226 +28,15 @@ int craterPattern[7][7];
 #include "ball.cpp"
 #include "camera.cpp"
 
-struct RenderState {
-    Shader sh_texture;
-    Shader sh_color;
-};
-
-enum ABILITY
-{
-    NONE,
-    CRATER,
-    PLACE_OBSTACLE,
-    RETRY,
-    HEAVY_WIND,
-    MOVE_HOLE,
-    SHOOT_THEIR_BALL,
-};
-
-struct GameState {
-    game_assets assets;
-    RenderState rst;
-
-    Ball balls[16];
-    Ball *cueBall;
-    i32 ballCount = 0;
-
-    enum : int {
-        POSITIONING_BALL,
-        AIMING,
-        SHOOTING_MOTION,
-        BALL_MOVING,
-        USE_ABILITY
-    } roundState = AIMING;
-
-    i32 ability = ABILITY::NONE;
-    union {
-        union
-        {
-            i32 rotation = 0;
-        } obstacleAbility;
-
-        union
-        {
-            
-        } craterAbility;
-    } abilityState;
-    
-    v2 ballStartPosition = {0.f,0.f};
-
-    float shootingMotionTimer=0.f;
-
-    float cueRotation = 0.f;
-    float cuePower = 1.0f;
-    float cueRotSpeed = 0.5f;
-    int tiles[MAP_SIZE][MAP_SIZE];
-    int validSpawn[MAP_SIZE][MAP_SIZE];
-
-    v2 itemDrops[64];
-    i32 itemDropCount = 0;
-
-    i32 strokeCount = 0;
-
-    v2 holePos;
-
-    TTF_Font *m5x7 = nullptr;
-    Camera camera;
-    bool autocam = true;
-
-    generic_drawable strokeText;
-
-    float globalTimer=0.f;
-};
-
-global_variable GameState *game_state=nullptr;
-
-const glm::mat4 projection = glm::ortho(0.0f,
-        static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, -1.0f, 1.0f);
-
-void LoadRenderState(RenderState *st) {
-    st->sh_texture = CreateShader("texture.vert","texture.frag");
-    st->sh_color = CreateShader("color.vert","color.frag");
-    
-    glm::mat4 model = glm::mat4(1.0f);
-    glm::mat4 view = CalculateCameraViewMatrix(&game_state->camera);
-    
-    UseShader(&game_state->rst.sh_color);
-    st->sh_color.UniformM4fv("projection",projection);
-    st->sh_color.UniformM4fv("model",model);
-    st->sh_color.UniformM4fv("view",view);
-    UseShader(&game_state->rst.sh_texture);
-    st->sh_texture.UniformM4fv("projection",projection);
-    st->sh_texture.UniformColor("colorMod",{255,255,255,255});
-    st->sh_texture.UniformM4fv("model",model);
-    st->sh_texture.UniformM4fv("view",view);
-}
-
-void ChangeStrokes(i32 count)
-{
-    game_state->strokeCount = count;
-    game_state->strokeText = GenerateTextObj(
-        game_state->m5x7, std::to_string(game_state->strokeCount),
-        COLOR_WHITE, game_state->strokeText.gl_texture);
-    game_state->strokeText.pos = {28,20};
-    game_state->strokeText.scale = {2.f, 2.f};
-}
+#include "player.cpp"
+#include "game_state.h"
+#include "level.cpp"
+#include "game_state.cpp"
 
 #include "cuestick.cpp"
 #include "levelupdate.cpp"
 #include "renderpreviewline.cpp"
-
-TILE_TYPE GetDownhillTileFromPixel(Color pixel)
-{
-    if (pixel == Color(0,100,0,255))
-    {
-        return TILE_TYPE::DOWNHILL_RIGHT;
-    } else if (pixel == 0x250064ff)
-    {
-        return TILE_TYPE::DOWNHILL_LEFT;
-    } else if (pixel == 0x640062ff)
-    {
-        return TILE_TYPE::DOWNHILL_UP;
-    } else if (pixel == 0x646200ff)
-    {
-        return TILE_TYPE::DOWNHILL_DOWN;
-    } else if (pixel == 0x641b00ff)
-    {
-        return TILE_TYPE::DOWNHILL_DOWN_RIGHT;
-    } else if (pixel == 0xa5b50eff)
-    {
-        return TILE_TYPE::DOWNHILL_DOWN_LEFT;
-    } else if (pixel == 0x8145beff)
-    {
-        return TILE_TYPE::DOWNHILL_UP_LEFT;
-    } else if (pixel == 0x008f45ff)
-    {
-        return TILE_TYPE::DOWNHILL_UP_RIGHT;
-    }
-    return TILE_TYPE::GRASS;
-}
-
-void InitializeGameMemory(GameMemory *memory) {
-    *game_state = {};
-
-    LoadRenderState(&game_state->rst);
-
-    srand((u32)time(0));
-
-    game_state->m5x7 = TTF_OpenFont("res/m5x7.ttf",16);
-
-    game_state->cueBall = &game_state->balls[0];
-
-    game_state->ballCount++;
-    game_state->cueBall->pos = {300.f,100.f};
-    game_state->cueBall->radius = 8.f;
-    game_state->cueBall->mass = PIf * game_state->cueBall->radius * game_state->cueBall->radius;
-    game_state->cueBall->vel = {0.f,0.f};
-    game_state->cueBall->active = true;
-
-    // load map
-    SDL_Surface *mp_surf = IMG_Load("res/levels.png");
-    
-    for (int i=0; i<MAP_SIZE; i++)
-    {
-        for (int j=0; j<MAP_SIZE; j++)
-        {
-            Color pixel = getPixel(mp_surf, i, j);
-            game_state->tiles[i][j] = TILE_TYPE::GRASS;
-            game_state->validSpawn[i][j] = false;
-            if (pixel == COLOR_BLACK)
-            {
-                game_state->tiles[i][j] = TILE_TYPE::WALL;
-            } else if (pixel == COLOR_YELLOW)
-            {
-                game_state->holePos = {i*64.f, j*64.f};
-            } else if (pixel == COLOR_WHITE)
-            {
-                game_state->cueBall->pos = {i*64.f, j*64.f};
-                game_state->validSpawn[i][j] = true;
-            } else if (pixel == COLOR_BLUE)
-            {
-                game_state->tiles[i][j] = TILE_TYPE::WATER;
-            } else if (pixel == COLOR_RED)
-            {
-                // Item
-                game_state->itemDrops[game_state->itemDropCount++] = {i*64.f + 32.f, j*64.f + 32.f};
-            } else if (pixel == COLOR_GREEN)
-            {
-                game_state->tiles[i][j] = TILE_TYPE::GRASS;
-            } else if (pixel == 0x648c1eff)
-            {
-                game_state->validSpawn[i][j] = true;
-                
-            } else
-            {
-                game_state->tiles[i][j] = GetDownhillTileFromPixel(pixel);
-            }
-        }
-    }
-    SDL_FreeSurface(mp_surf);
-
-    SDL_Surface *craterSurf = IMG_Load("res/craterPattern.png");
-    for (int i=0; i<7; i++)
-    {
-        for (int j=0; j<7; j++)
-        {
-            Color pixel = getPixel(craterSurf, i, j);
-            if (pixel == COLOR_TRANSPARENT)
-            {
-                craterPattern[i][j] = TILE_TYPE::TT_NONE;
-            } else
-            {                
-                craterPattern[i][j] = GetDownhillTileFromPixel(pixel);
-            }
-        }
-    }
-    SDL_FreeSurface(craterSurf);
-
-    ChangeStrokes(0);
-    
-    memory->is_initialized = true;
-    std::cout << "Initialized game memory\n";
-}
+#include "ability.cpp"
 
 #if defined __cplusplus
 extern "C"
@@ -281,7 +47,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     private_global_assets = &game_state->assets;
     if (!input) {
         return;
-    }    
+    }
     
     if (game_memory->is_initialized == false) {
         InitializeGameMemory(game_memory);
@@ -307,9 +73,16 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         game_state->autocam = true;
     }
 
-    if (game_state->autocam)
+    if (game_state->roundState == GameState::USE_ABILITY)
     {
-        game_state->camera.pos = Lerp(game_state->camera.pos, game_state->cueBall->pos - v2(WINDOW_WIDTH/2.f, WINDOW_HEIGHT/2.f), 0.05f);
+        if (game_state->ability == ABILITY::CRATER)
+        {
+            v2 cameraDest = game_state->balls[game_state->abilityState.craterAbility.selectedBall].pos - v2(WINDOW_WIDTH/2.f, WINDOW_HEIGHT/2.f);
+            game_state->camera.pos = Lerp(game_state->camera.pos, cameraDest, 0.05f);
+        }
+    } else if (game_state->autocam)
+    {
+        game_state->camera.pos = Lerp(game_state->camera.pos, GetCurrentPlayer()->ball->pos - v2(WINDOW_WIDTH/2.f, WINDOW_HEIGHT/2.f), 0.05f);
     } else
     {
         // move camera around
@@ -349,7 +122,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         if (game_state->validSpawn[tilePos.x][tilePos.y])
         {
-            game_state->cueBall->pos = mPos;
+            GetCurrentPlayer()->ball->pos = mPos;
         }
 
         if (input->mouse_just_pressed)
@@ -363,7 +136,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     {
         if (input->just_pressed[SDL_SCANCODE_F])
         {
-            if (game_state->strokeCount == 0)
+            if (GetCurrentPlayer()->strokeCount == 0)
             {                
                 game_state->roundState = GameState::POSITIONING_BALL;
             }
@@ -374,27 +147,6 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         } else if (input->just_pressed[SDL_SCANCODE_6])
         {
-            // Place a crater around the cue ball
-            v2i ballTile = (v2i)(game_state->cueBall->pos * (1.f/64.f));
-            for (int i=0; i<7; i++)
-            {
-                for (int j=0; j<7; j++)
-                {
-                    i32 craterValue = craterPattern[i][j];
-                    v2i tilePos = {ballTile.x - 3 + i, ballTile.y - 3 + j};
-                    i32 tileType = game_state->tiles[tilePos.x][tilePos.y];
-                    if (tileType != TILE_TYPE::GRASS &&
-                        IsTileDownhill(tileType) == false)
-                    {
-                        continue;
-                    }
-                    
-                    if (craterValue != TILE_TYPE::TT_NONE)
-                    {
-                        game_state->tiles[tilePos.x][tilePos.y] = craterValue;
-                    }
-                }
-            }
         }
     }
     
@@ -409,6 +161,12 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         res_timer = 0.f;
         CheckForResourceUpdates(&game_state->assets);
     }
+
+    UseShader(GetShader("color"));
+    GetShader("color")->UniformM4fv("projection",projection);
+    UseShader(GetShader("texture"));
+    GetShader("texture")->UniformM4fv("projection",projection);
+    GetShader("texture")->Uniform4f("colorMod",1.f,1.f,1.f,1.f);
     
     glClearColor(0.2f, 0.2f, 0.21f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -416,16 +174,19 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     glm::mat4 model = glm::mat4(1.0);
     glm::mat4 cameraView = CalculateCameraViewMatrix(&game_state->camera);
 
-    UseShader(&game_state->rst.sh_texture);
-    game_state->rst.sh_texture.UniformM4fv("model",model);
-    game_state->rst.sh_texture.UniformM4fv("view",cameraView);
-    game_state->rst.sh_texture.Uniform1i("_texture",GetTexture("res/sprites.png"));
+    Shader *sh_texture = GetShader("texture");
+    Shader *sh_color = GetShader("color");
+    
+    UseShader(sh_texture);
+    sh_texture->UniformM4fv("model",model);
+    sh_texture->UniformM4fv("view",cameraView);
+    sh_texture->Uniform1i("_texture",GetTexture("res/sprites.png"));
+    
+    UseShader(sh_color);
+    sh_color->UniformM4fv("model",model);
+    sh_color->UniformM4fv("view",cameraView);
 
-    UseShader(&game_state->rst.sh_color);
-    game_state->rst.sh_color.UniformM4fv("model",model);
-    game_state->rst.sh_color.UniformM4fv("view",cameraView);
-
-    UseShader(&game_state->rst.sh_texture);
+    UseShader(sh_texture);
     // background tiles
     int startx, starty, endx, endy;
     fRect camBounds = game_state->camera.GetBounds();
@@ -474,84 +235,14 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             if (IsTileDownhill(tile))
             {
                 glm::mat4 rotMatrix = rotate_model_matrix(((tile - TILE_TYPE::DOWNHILL_RIGHT) * PIf*2.f) / 8.f, dest, {dest.w/2.f,dest.h/2.f});
-                game_state->rst.sh_texture.UniformM4fv("model", rotMatrix);
+                sh_texture->UniformM4fv("model", rotMatrix);
                 GL_DrawTexture({128,32,32,32}, dest);
-                game_state->rst.sh_texture.UniformM4fv("model", glm::mat4(1.0));
+                sh_texture->UniformM4fv("model", glm::mat4(1.0));
             }
         }
     }
 
-    
-    // Draw hole
-    fRect holeDest = {game_state->holePos.x - HOLE_SIZE/2,
-        game_state->holePos.y - HOLE_SIZE/2,
-        HOLE_SIZE, HOLE_SIZE};
-    GL_DrawTexture({0,80,64,64}, holeDest);
-
-    // Balls
-    for (int i=0; i<game_state->ballCount; i++)
-    {
-        if (game_state->balls[i].active == false)
-        {
-            continue;
-        }
-        
-        iRect src = {0,0,32,32};
-        if (i != 0)
-        {
-            src.x = 32;
-        }
-        
-        GL_DrawTexture(src,{(i32)game_state->balls[i].left(),(i32)game_state->balls[i].top(),(i32)(game_state->balls[i].radius*2.f),(i32)(game_state->balls[i].radius*2.f)});
-    }
-
-    // Draw item drops
-    for (int i=0; i<game_state->itemDropCount; i++)
-    {
-        v2 pos = game_state->itemDrops[i];
-        iRect dest = iRect((i32)(pos.x - 32.f), (i32)(pos.y - 32.f), 64, 64);
-        dest.y += (i32)(sin(game_state->globalTimer * 3.0) * 6.0);
-        GL_DrawTexture({160,32,32,32}, dest);
-    }
-
-    // Cue stick
-    float cueVisualDistance = game_state->cuePower + 16.f;
-    v2 cueBallPos = game_state->cueBall->pos;
-    if (game_state->roundState == GameState::SHOOTING_MOTION)
-    {
-        float maxCueDistance = cueVisualDistance + 0.75f * cueVisualDistance;
-        if (game_state->shootingMotionTimer < 0.75f)
-        {
-            cueVisualDistance += game_state->shootingMotionTimer * cueVisualDistance;
-        } else
-        {
-            float t = (game_state->shootingMotionTimer - 0.75f) / 0.25f;
-            cueVisualDistance = Lerp(maxCueDistance, 0.f, t);
-        }
-    } else if (game_state->roundState == GameState::BALL_MOVING)
-    {
-        cueVisualDistance = 0.f;
-        cueBallPos = game_state->ballStartPosition;
-    }
-
-    // Draw cue stick
-    fRect dest = {cueBallPos.x - 16.f - 192.f - cueVisualDistance, cueBallPos.y - 16.f + 8.f, 192.f, 16.f};
-    v2 cueStickOrigin = {192.f + game_state->cueBall->radius + cueVisualDistance, 8.f};
-    glm::mat4 stickModelMatrix = rotate_model_matrix(game_state->cueRotation, dest, cueStickOrigin);
-    game_state->rst.sh_texture.UniformM4fv("model", stickModelMatrix);
-    GL_DrawTexture({0,64,192,16},(iRect)dest);
-    game_state->rst.sh_texture.UniformM4fv("model", model);
-
-    // preview line
-    if (game_state->roundState == GameState::AIMING ||
-        game_state->roundState == GameState::SHOOTING_MOTION)
-    {
-        RenderPreviewLine();        
-    }
-
-    UseShader(&game_state->rst.sh_texture);
-
-    // Ability rendering
+    // Draw preview tiles for obstacle placement ability
     if (game_state->roundState == GameState::USE_ABILITY)
     {
         if (game_state->ability == ABILITY::PLACE_OBSTACLE)
@@ -571,9 +262,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 rot = 3;
             }
             if (rot >= 4)
-            {
                 rot = 0;
-            }
 
             game_state->abilityState.obstacleAbility.rotation = rot;
 
@@ -595,29 +284,299 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 secondPlacement.y--;
             }
 
-            game_state->rst.sh_texture.Uniform4f("colorMod",0.f,0.f,0.f,0.5f);
+            sh_texture->Uniform4f("colorMod",0.f,0.f,0.f,0.5f);
             GL_DrawTexture({32,32,32,32}, {placement.x * 64, placement.y * 64, 64, 64});
             GL_DrawTexture({32,32,32,32}, {secondPlacement.x * 64, secondPlacement.y * 64, 64, 64});
-            game_state->rst.sh_texture.Uniform4f("colorMod",1.f,1.f,1.f,1.f);
+            sh_texture->Uniform4f("colorMod",1.f,1.f,1.f,1.f);
             
             if (input->mouse_just_pressed)
             {
-                
+                // This is much easier to do inline rather than putting it in
+                // OnAbilityUse because the placements of the tiles needed for
+                // the placement are already calculated for previewing
                 game_state->tiles[placement.x][placement.y] = TILE_TYPE::WALL;
                 game_state->tiles[secondPlacement.x][secondPlacement.y] = TILE_TYPE::WALL;
 
-                game_state->ability = ABILITY::NONE;
-                game_state->roundState = GameState::AIMING;
+                ConsumeAbility(GetCurrentPlayer());
+                RestoreAfterAbilityUse();
             }
+                
         }
     }
 
+    // Draw hole
+    fRect holeDest = {game_state->holePos.x - HOLE_SIZE/2,
+        game_state->holePos.y - HOLE_SIZE/2,
+        HOLE_SIZE, HOLE_SIZE};
+    GL_DrawTexture({0,80,64,64}, holeDest);
+
+    // Balls
+    for (int i=0; i<game_state->ballCount; i++)
+    {
+        if (game_state->balls[i].active == false)
+        {
+            continue;
+        }
+        
+        iRect src = {0,0,32,32};        
+        GL_DrawTexture(src,{
+                (i32)game_state->balls[i].left(),
+                (i32)game_state->balls[i].top(),
+                (i32)(game_state->balls[i].radius*2.f),
+                (i32)(game_state->balls[i].radius*2.f)});
+    }
+
+    // Draw item drops
+    for (int i=0; i<game_state->itemDropCount; i++)
+    {
+        v2 pos = game_state->itemDrops[i];
+        iRect dest = iRect((i32)(pos.x - 32.f), (i32)(pos.y - 32.f), 64, 64);
+        dest.y += (i32)(sin(game_state->globalTimer * 3.0) * 6.0);
+        GL_DrawTexture({160,32,32,32}, dest);
+    }
+
+    // Cue stick
+    if (game_state->roundState == GameState::SHOOTING_MOTION ||
+        game_state->roundState == GameState::AIMING ||
+        game_state->roundState == GameState::BALL_MOVING)
+    {
+        float cueVisualDistance = game_state->cuePower + 16.f;
+        v2 cueBallPos = GetCurrentPlayer()->ball->pos;
+        if (game_state->roundState == GameState::SHOOTING_MOTION)
+        {
+            float maxCueDistance = cueVisualDistance + 0.75f * cueVisualDistance;
+            if (game_state->shootingMotionTimer < 0.75f)
+            {
+                cueVisualDistance += game_state->shootingMotionTimer * cueVisualDistance;
+            } else
+            {
+                float t = (game_state->shootingMotionTimer - 0.75f) / 0.25f;
+                cueVisualDistance = Lerp(maxCueDistance, 0.f, t);
+            }
+        } else if (game_state->roundState == GameState::BALL_MOVING)
+        {
+            cueVisualDistance = 0.f;
+            cueBallPos = game_state->ballStartPosition;
+        }
+
+        fRect dest = {cueBallPos.x - 16.f - 192.f - cueVisualDistance, cueBallPos.y - 16.f + 8.f, 192.f, 16.f};
+        v2 cueStickOrigin = {192.f + GetCurrentPlayer()->ball->radius + cueVisualDistance, 8.f};
+        glm::mat4 stickModelMatrix = rotate_model_matrix(game_state->cueRotation, dest, cueStickOrigin);
+        sh_texture->UniformM4fv("model", stickModelMatrix);
+        GL_DrawTexture({0,64,192,16},(iRect)dest);
+        sh_texture->UniformM4fv("model", model);        
+    }
+
+    // preview line
+    if (game_state->roundState == GameState::AIMING ||
+        game_state->roundState == GameState::SHOOTING_MOTION)
+    {
+        RenderPreviewLine();        
+    }
+
+    UseShader(sh_texture);
+
     // GUI
-    // Render stroke text
-    UseShader(&game_state->rst.sh_texture);
-    game_state->rst.sh_texture.UniformM4fv("view", glm::mat4(1.0));
-    game_state->rst.sh_texture.Uniform1i("_texture", game_state->strokeText.gl_texture);
-    GL_DrawTexture(game_state->strokeText.bound, game_state->strokeText.getDrawRect());
+    UseShader(sh_texture);
+    sh_texture->UniformM4fv("view", glm::mat4(1.0));
+    for (int i=0; i<game_state->playerCount; i++)
+    {
+        // Render stroke text
+        sh_texture->Uniform1i("_texture", game_state->players[i].strokeText.gl_texture);
+        GL_DrawTexture(game_state->players[i].strokeText.bound, game_state->players[i].strokeText.getDrawRect());
+    }
+
+    // Render ability icons for current player
+    if (GetCurrentPlayer()->abilityCount != 0)
+    {
+        sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
+
+        if (game_state->roundState == GameState::POST_SHOT)
+        {
+            // Display button to prompt player to end turn without using ability
+            local_persist bool generatedEndTurnButton = false;
+            local_persist generic_drawable endTurnText;
+            if (!generatedEndTurnButton)
+            {
+                endTurnText = GenerateTextObj(GetFont("res/m5x7.ttf"), "End Turn", COLOR_BLACK);
+                endTurnText.scale = {4.f, 4.f};
+                sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
+            }
+            iRect textBounds = endTurnText.getDrawRect();
+            iRect buttonDest = {WINDOW_WIDTH/2 - 128, WINDOW_HEIGHT/2 + 200, 256, 80};
+            iRect textDest = {buttonDest.x + buttonDest.w/2 - textBounds.w/2,
+                buttonDest.y + buttonDest.h/2 - textBounds.h/2 - 8,
+                textBounds.w,
+                textBounds.h};
+
+            iRect buttonSrc = {0, 272, 48, 32};
+            v2i mPos = GetMousePosition();
+            if (buttonDest.contains(mPos))
+            {
+                buttonSrc.x = 48;
+                if (input->mouse_pressed)
+                {
+                    buttonSrc.x = 96;
+                    textDest.y += 12;
+                    if (input->mouse_just_pressed)
+                    {
+                        FinishTurn();
+                    }
+                }
+            }
+
+            sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
+            sh_texture->UniformM4fv("model", glm::mat4(1.0));
+            GL_DrawTexture(buttonSrc, buttonDest);
+            sh_texture->Uniform1i("_texture", endTurnText.gl_texture);
+            GL_DrawTexture(endTurnText.bound, textDest);
+            sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
+        } else if (game_state->roundState == GameState::USE_ABILITY)
+        {
+            if (game_state->ability == ABILITY::CRATER)
+            {
+                iRect cycleLeftDest = {WINDOW_WIDTH/2 - 300 - 64, WINDOW_HEIGHT/2, 64, 128};
+                iRect cycleRightDest = {WINDOW_WIDTH/2 + 300, WINDOW_HEIGHT/2, 64, 128};
+                iRect srcLeft = {144,272,32,32};
+                iRect srcRight = {144,272,32,32};
+                
+                v2i mPos = GetMousePosition();
+                i32 selectedBall = game_state->abilityState.craterAbility.selectedBall;
+                if (cycleLeftDest.contains(mPos))
+                {
+                    srcLeft.x = 176;
+                    if (input->mouse_just_pressed)
+                    {
+                        srcLeft.x = 208;
+                        if (input->mouse_just_pressed)
+                        {
+                            do
+                            {
+                                selectedBall--;
+                                if (selectedBall < 0)
+                                {
+                                    selectedBall = game_state->ballCount-1;
+                                }
+                            } while (game_state->balls[selectedBall].active == false);
+                        }
+                    }
+                }
+                if (cycleRightDest.contains(mPos))
+                {
+                    srcRight.x = 176;
+                    if (input->mouse_pressed)
+                    {
+                        srcRight.x = 208;
+                        if (input->mouse_just_pressed)
+                        {
+                            do
+                            {
+                                selectedBall++;
+                                if (selectedBall > game_state->ballCount-1)
+                                {
+                                    selectedBall = 0;
+                                }
+                            } while (game_state->balls[selectedBall].active == false);
+                        }
+                    }
+                }
+                
+                game_state->abilityState.craterAbility.selectedBall = selectedBall;
+
+                local_persist bool generatedActivateButton = false;
+                local_persist generic_drawable activateText;
+                if (!generatedActivateButton)
+                {
+                    activateText = GenerateTextObj(GetFont("res/m5x7.ttf"), "Activate", COLOR_BLACK);
+                    activateText.scale = {4.f, 4.f};
+                    sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
+                }
+                iRect textBounds = activateText.getDrawRect();
+                iRect buttonDest = {WINDOW_WIDTH/2 - 128, WINDOW_HEIGHT/2 + 200, 256, 80};
+                iRect textDest = {buttonDest.x + buttonDest.w/2 - textBounds.w/2,
+                    buttonDest.y + buttonDest.h/2 - textBounds.h/2 - 8,
+                    textBounds.w,
+                    textBounds.h};
+
+                iRect buttonSrc = {0, 272, 48, 32};
+                if (buttonDest.contains(mPos))
+                {
+                    buttonSrc.x = 48;
+                    if (input->mouse_pressed)
+                    {
+                        buttonSrc.x = 96;
+                        textDest.y += 12;
+                        if (input->mouse_just_pressed)
+                        {
+                            OnAbilityUse(game_state->ability);
+
+                            ConsumeAbility(GetCurrentPlayer());
+                            RestoreAfterAbilityUse();
+                        }
+                    }
+                }
+
+                sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
+                model = rotate_model_matrix(PIf, cycleLeftDest, {cycleLeftDest.w/2.f, cycleLeftDest.h/2.f});
+                sh_texture->UniformM4fv("model", model);
+                GL_DrawTexture(srcLeft, cycleLeftDest);
+                sh_texture->UniformM4fv("model", glm::mat4(1.0));
+                GL_DrawTexture(srcRight, cycleRightDest);
+
+                GL_DrawTexture(buttonSrc, buttonDest);
+                sh_texture->Uniform1i("_texture", activateText.gl_texture);
+                GL_DrawTexture(activateText.bound, textDest);                
+            }
+        }
+
+        // The reason the code for selecting abilities is after
+        // the ability code itself is so that there is a guaranteed
+        // one frame buffer, i.e. so the click that selects
+        // the ability doesn't also trigger the ability itself
+        for (int i=0; i<GetCurrentPlayer()->abilityCount; i++)
+        {
+            i32 ability = GetCurrentPlayer()->abilities[i];
+            iRect src = {0, 160, 48, 48};
+            if (ability == ABILITY::CRATER)
+            {
+                src.x = 0;
+            } else if (ability == ABILITY::PLACE_OBSTACLE)
+            {
+                src.x = 48;
+            } else if (ability == ABILITY::RETRY)
+            {
+                src.x = 144;
+            } else if (ability == ABILITY::HEAVY_WIND)
+            {
+                src.x = 192;
+            } else if (ability == ABILITY::SHOOT_THEIR_BALL)
+            {
+                src.x = 0;
+                src.y = 208;
+            }
+            i32 size = 96;
+            iRect dest = {WINDOW_WIDTH - 24 - (size + 24) *(i+1), 32, size, size};
+            
+            v2i mPos = GetMousePosition();
+            if (dest.contains(mPos))
+            {
+                if (input->mouse_just_pressed)
+                {
+                    game_state->roundState = GameState::USE_ABILITY;
+                    game_state->ability = ability;
+                    GetCurrentPlayer()->selectedAbility = i;
+                    OnAbilitySelected(game_state->ability);
+                }
+                sh_texture->Uniform4f("colorAdd", 0.2f, 0.2f, 0.2f, 1.0f);
+                GL_DrawTexture(src, dest);
+                sh_texture->Uniform4f("colorAdd", 0.f, 0.f, 0.f, 0.f);
+            } else
+            {
+                GL_DrawTexture(src, dest);
+            }            
+        }
+    }
+
 
     // Render move ball button
     /*
@@ -625,7 +584,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     local_persist generic_drawable moveBallText;
     if (!generateMoveBallButton)
     {
-        moveBallText = GenerateTextObj(game_state->m5x7, "MOVE BALL", COLOR_BLACK);
+        moveBallText = GenerateTextObj(GetFont("res/m5x7.ttf"), "MOVE BALL", COLOR_BLACK);
         moveBallText.scale = {2.f, 2.f};
     }
 
@@ -648,9 +607,9 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         }
     }
 
-    game_state->rst.sh_texture.Uniform1i("_texture", GetTexture("res/sprites.png"));
+    sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
     GL_DrawTexture(buttonSrc, buttonDest);
-    game_state->rst.sh_texture.Uniform1i("_texture", moveBallText.gl_texture);
+    sh_texture->Uniform1i("_texture", moveBallText.gl_texture);
     GL_DrawTexture(moveBallText.bound, textDest);
     */
     

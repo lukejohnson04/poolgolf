@@ -1,6 +1,7 @@
 
 const float RESTITUTION = 0.95f;
 const float FRICTION = 3.25f;
+const float GRAVITY = 11.f;
 
 struct Ball
 {
@@ -30,6 +31,16 @@ struct Ball
         return pos.y + radius;
     }
 };
+
+internal
+void BallInit(Ball *a)
+{
+    *a = {};
+    a->radius = 12.f;
+    a->mass = PIf * a->radius * a->radius;
+    a->vel = {0.f,0.f};
+    a->active = true;
+}
 
 
 v2 BallGetCollisionPoint(Ball *a, Ball *b, v2 dir)
@@ -116,10 +127,6 @@ void UpdateBall(Ball *ball, int tiles[][MAP_SIZE], float delta)
     {
         float fallRate = 16.f;
         ball->radius -= fallRate * delta;
-        if (ball->radius <= 0)
-        {
-            ball->active = false;
-        }
         
         if (ball->fallingInHole == false)
         {
@@ -178,7 +185,6 @@ void UpdateBall(Ball *ball, int tiles[][MAP_SIZE], float delta)
                         float degrees = (tile - TILE_TYPE::DOWNHILL_RIGHT) / 8.f;
                         degrees *= PIf * 2.f;
                         slopeDirection = V2Rotate(slopeDirection, degrees);
-                        const float GRAVITY = 9.8f;
                         float g = GRAVITY * (float)sin(45);
                         
                         ball->vel += slopeDirection * (g * delta);
