@@ -1,5 +1,6 @@
 
 #include "core/engine.cpp"
+#include "button.cpp"
 
 /*
  * How to write code in this code base:
@@ -58,9 +59,12 @@ struct RenderState {
 enum ABILITY
 {
     NONE,
-    MOVE_HOLE,
+    CRATER,
     PLACE_OBSTACLE,
-    CRATER
+    RETRY,
+    HEAVY_WIND,
+    MOVE_HOLE,
+    SHOOT_THEIR_BALL,
 };
 
 struct GameState {
@@ -72,6 +76,7 @@ struct GameState {
     i32 ballCount = 0;
 
     enum : int {
+        POSITIONING_BALL,
         AIMING,
         SHOOTING_MOTION,
         BALL_MOVING,
@@ -99,6 +104,7 @@ struct GameState {
     float cuePower = 1.0f;
     float cueRotSpeed = 0.5f;
     int tiles[MAP_SIZE][MAP_SIZE];
+    int validSpawn[MAP_SIZE][MAP_SIZE];
 
     v2 itemDrops[64];
     i32 itemDropCount = 0;
@@ -145,7 +151,7 @@ void ChangeStrokes(i32 count)
     game_state->strokeText = GenerateTextObj(
         game_state->m5x7, std::to_string(game_state->strokeCount),
         COLOR_WHITE, game_state->strokeText.gl_texture);
-    game_state->strokeText.position = {28,20};
+    game_state->strokeText.pos = {28,20};
     game_state->strokeText.scale = {2.f, 2.f};
 }
 
@@ -210,6 +216,7 @@ void InitializeGameMemory(GameMemory *memory) {
         {
             Color pixel = getPixel(mp_surf, i, j);
             game_state->tiles[i][j] = TILE_TYPE::GRASS;
+            game_state->validSpawn[i][j] = false;
             if (pixel == COLOR_BLACK)
             {
                 game_state->tiles[i][j] = TILE_TYPE::WALL;
@@ -219,6 +226,7 @@ void InitializeGameMemory(GameMemory *memory) {
             } else if (pixel == COLOR_WHITE)
             {
                 game_state->cueBall->pos = {i*64.f, j*64.f};
+                game_state->validSpawn[i][j] = true;
             } else if (pixel == COLOR_BLUE)
             {
                 game_state->tiles[i][j] = TILE_TYPE::WATER;
@@ -229,6 +237,10 @@ void InitializeGameMemory(GameMemory *memory) {
             } else if (pixel == COLOR_GREEN)
             {
                 game_state->tiles[i][j] = TILE_TYPE::GRASS;
+            } else if (pixel == 0x648c1eff)
+            {
+                game_state->validSpawn[i][j] = true;
+                
             } else
             {
                 game_state->tiles[i][j] = GetDownhillTileFromPixel(pixel);
@@ -328,10 +340,34 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         }
     }
 
+    if (game_state->roundState == GameState::POSITIONING_BALL)
+    {
+        v2 mPos = GetMouseWorldPos(&game_state->camera);
+        v2i tilePos = v2i((i32)(mPos.x / 64.f), (i32)(mPos.y / 64.f));
+        tilePos.x = CLAMP(0, MAP_SIZE, tilePos.x);
+        tilePos.y = CLAMP(0, MAP_SIZE, tilePos.y);
+
+        if (game_state->validSpawn[tilePos.x][tilePos.y])
+        {
+            game_state->cueBall->pos = mPos;
+        }
+
+        if (input->mouse_just_pressed)
+        {
+            game_state->roundState = GameState::AIMING;
+        }
+    }
+
     // Abilities
     if (game_state->roundState == GameState::AIMING)
     {
-        if (input->just_pressed[SDL_SCANCODE_5])
+        if (input->just_pressed[SDL_SCANCODE_F])
+        {
+            if (game_state->strokeCount == 0)
+            {                
+                game_state->roundState = GameState::POSITIONING_BALL;
+            }
+        } else if (input->just_pressed[SDL_SCANCODE_5])
         {
             game_state->ability = ABILITY::PLACE_OBSTACLE;
             game_state->roundState = GameState::USE_ABILITY;
@@ -413,7 +449,14 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             iRect dest = {i*64,j*64,64,64};
             if (tile == TILE_TYPE::GRASS)
             {
-                src.x = 0;
+                if (game_state->roundState == GameState::POSITIONING_BALL &&
+                    game_state->validSpawn[i][j])
+                {
+                    src.x = 96;
+                } else
+                {                    
+                    src.x = 0;
+                }
             } else if (tile == TILE_TYPE::WALL)
             {
                 src.x = 32;
@@ -569,13 +612,47 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         }
     }
 
-
+    // GUI
     // Render stroke text
     UseShader(&game_state->rst.sh_texture);
     game_state->rst.sh_texture.UniformM4fv("view", glm::mat4(1.0));
     game_state->rst.sh_texture.Uniform1i("_texture", game_state->strokeText.gl_texture);
     GL_DrawTexture(game_state->strokeText.bound, game_state->strokeText.getDrawRect());
 
+    // Render move ball button
+    /*
+    local_persist bool generateMoveBallButton = false;
+    local_persist generic_drawable moveBallText;
+    if (!generateMoveBallButton)
+    {
+        moveBallText = GenerateTextObj(game_state->m5x7, "MOVE BALL", COLOR_BLACK);
+        moveBallText.scale = {2.f, 2.f};
+    }
+
+    iRect textBounds = moveBallText.getDrawRect();
+    iRect buttonDest = {32, 32, 128, 64};
+    iRect textDest = {buttonDest.x + buttonDest.w/2 - textBounds.w/2,
+        buttonDest.y + buttonDest.h/2 - textBounds.h/2 - 8,
+        textBounds.w,
+        textBounds.h};
+
+    iRect buttonSrc = {0, 272, 48, 32};
+    v2i mPos = GetMousePosition();
+    if (buttonDest.contains(mPos))
+    {
+        buttonSrc.x = 48;
+        if (input->mouse_pressed)
+        {
+            buttonSrc.x = 96;
+            textDest.y += 12;
+        }
+    }
+
+    game_state->rst.sh_texture.Uniform1i("_texture", GetTexture("res/sprites.png"));
+    GL_DrawTexture(buttonSrc, buttonDest);
+    game_state->rst.sh_texture.Uniform1i("_texture", moveBallText.gl_texture);
+    GL_DrawTexture(moveBallText.bound, textDest);
+    */
     
     SDL_GL_SwapWindow(window);
 }
