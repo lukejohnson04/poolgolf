@@ -16,7 +16,6 @@ struct InputState {
 void PollEvents(InputState *state, game_handle_event* callback, bool *running);
 v2i GetMousePosition();
 
-
 InputState *input=nullptr;
 
 void PollEvents(InputState *state, game_handle_event *callback, bool *running) {

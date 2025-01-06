@@ -1,0 +1,17 @@
+Items
+
+Item where you can place an obstacle (potentially only in the way of your opponent) - Done
+Item where you can move the hole
+Item where you can move the opponents cue ball
+Item where you swap places with the opponents cue ball
+Item where you can hit the opponents cue ball once - but you can't scratch
+Item that craters the opponents ball
+Item that lets you redo a shot
+Item that lets you time a spinner to create heavy wind in a certain direction
+
+Obstacles
+
+Ramps - Done
+Windmills
+Rotating blocks
+Water - Done

@@ -5,6 +5,16 @@ struct Camera
     // Zoom is percentage larger everything is
     // E.g. 2 would mean everything is scaled up 2x
     float zoom = 1.f;
+    fRect GetBounds()
+    {
+        fRect res;
+        res.w = WINDOW_WIDTH / zoom;
+        res.h = WINDOW_HEIGHT / zoom;
+        res.x = pos.x - res.w/2.f;
+        res.y = pos.y - res.h/2.f;
+        
+        return res;
+    }
 };
 
 glm::mat4 CalculateCameraViewMatrix(Camera *camera)
@@ -27,4 +37,11 @@ glm::mat4 CalculateCameraViewMatrix(Camera *camera)
         glm::vec3(-camera->pos.x, -camera->pos.y, 0.0f));
     
     return view;
+}
+
+v2 GetMouseWorldPos(Camera *camera)
+{
+    v2i mPos = GetMousePosition();
+    v2 pos = (v2)mPos + camera->pos;
+    return pos;
 }

@@ -11,6 +11,7 @@ struct Ball
     
     bool active=false;
     bool falling=false;
+    bool fallingInHole=false;
     float fallTimer=0.f;
 
     float left() {
@@ -51,22 +52,6 @@ v2 BallGetCollisionPoint(Ball *a, Ball *b, v2 dir)
     return closest;
 }
 
-/*
-void BallSetVel(Ball *ball, int init_pos_x, int init_pos_y, int fin_pos_x, int fin_pos_y)
-{
-    float vec_len;
-    vec_len = (float)(sqrt(pow((double)(init_pos_x - fin_pos_x), 2) + pow((double)(init_pos_y - fin_pos_y), 2)));
-    
-    float forceX = (fin_pos_x - init_pos_x) / vec_len;
-    float forceY = (fin_pos_y - init_pos_y) / vec_len;
-    
-    vec_len = MAX(vec_len, 25.f);
-    vec_len = MIN(vec_len, 225.f);
-    vec_len /= 8.f;
-    ball->vel = v2(-forceX,-forceY) * vec_len;
-}
-*/
-
 void BallHandleCollision(Ball *a, Ball *b)
 {
     v2 closest = BallGetCollisionPoint(a, b, a->vel);
@@ -96,23 +81,6 @@ void BallHandleCollision(Ball *a, Ball *b)
     a->vel = a->vel - (collisionNormal * (impulse / a->mass));
     b->vel = b->vel + (collisionNormal * (impulse / b->mass));
 
-    /*
-    // just calculate simply for now
-    float mass1 = a->mass;
-    float mass2 = b->mass;
-
-    v2 dir = b->pos - a->pos;
-    dir = Normalize(dir);
-
-    float v1 = V2DotProduct(a->vel, dir);
-    float v2 = V2DotProduct(b->vel, dir);
-
-    float newV1 = (mass1 * v1 + mass2 * v2 - mass2 * (v1 - v2) * RESTITUTION) / (mass1 + mass2);
-    float newV2 = (mass1 * v1 + mass2 * v2 - mass1 * (v2 - v1) * RESTITUTION) / (mass1 + mass2);
-    a->vel = a->vel + (dir * (newV1 - v1));
-    b->vel = b->vel + (dir * (newV2 - v2));
-    */
-
     a->pos = a->pos + (Normalize(a->vel) * offset);
 }
 
@@ -137,7 +105,7 @@ void BallPredictCollisionResolve(Ball *a, Ball *b, v2 impact_dir, v2 collision_p
     *b_dir = dir * (newVVAL_2 - vval_2);
 }
 
-void UpdateBall(Ball *ball, int tiles[][64], float delta)
+void UpdateBall(Ball *ball, int tiles[][MAP_SIZE], float delta)
 {
     if (!ball->active)
     {
@@ -152,12 +120,18 @@ void UpdateBall(Ball *ball, int tiles[][64], float delta)
         {
             ball->active = false;
         }
+        
+        if (ball->fallingInHole == false)
+        {
+            ball->vel *= 0.9f;
+            ball->pos += ball->vel;
+        }
         return;
     }
     
     // friction
     float len = Length(ball->vel);
-    len -= FRICTION * (1.f/60.f);
+    len -= FRICTION * delta;
 
     v2 vel = ball->vel;
     
@@ -167,33 +141,54 @@ void UpdateBall(Ball *ball, int tiles[][64], float delta)
     }
     vel = Normalize(vel) * len;
 
-    /*
-    if (ball->left() <= 0 || ball->right() >= 20*64 - 32) {
-        vel.x = -vel.x;
-    } if (ball->top() <= 0 || ball->bottom() >= 12 * 64 - 32) {
-        vel.y = -vel.y;
-    }
-    */
-
     ball->vel = vel;
-    for (int i = 0; i < 64; i++) {
-        for (int n = 0; n < 64; n++) {
-            if (tiles[i][n] != 1) {
+    for (int i = 0; i < MAP_SIZE; i++) {
+        for (int n = 0; n < MAP_SIZE; n++) {
+            i32 tile = tiles[i][n];
+            if (tile != TILE_TYPE::WALL &&
+                tile != TILE_TYPE::WATER &&
+                IsTileDownhill(tile) == false
+                ) {
                 continue;
             }
+            
             v2 tile_pos = GetTileWorldPos(i, n);
 
             fRect tile_rect(tile_pos.x, tile_pos.y, 64, 64);
             fRect col_rect(ball->left() + ball->vel.x, ball->top(), ball->radius * 2, ball->radius * 2);
 
-            if (DoRectsCollide(col_rect, tile_rect)) {
-                ball->vel.x = -ball->vel.x;
+            if (tile == TILE_TYPE::WALL)
+            {
+                if (DoRectsCollide(col_rect, tile_rect)) {
+                    ball->vel.x = -ball->vel.x;
+                }
+                col_rect.x = ball->left();
+                col_rect.y = ball->top() + ball->vel.y;
+                if (DoRectsCollide(col_rect, tile_rect)) {
+                    ball->vel.y = -ball->vel.y;
+                }                
+
+            } else
+            {
+                if (tile_rect.contains(ball->pos))
+                {
+                    if (IsTileDownhill(tile))
+                    {
+                        v2 slopeDirection = v2(1.0f, 0.0f);
+                        float degrees = (tile - TILE_TYPE::DOWNHILL_RIGHT) / 8.f;
+                        degrees *= PIf * 2.f;
+                        slopeDirection = V2Rotate(slopeDirection, degrees);
+                        const float GRAVITY = 9.8f;
+                        float g = GRAVITY * (float)sin(45);
+                        
+                        ball->vel += slopeDirection * (g * delta);
+                    } else
+                    {
+                        ball->falling = true;
+                    }
+                }
             }
-            col_rect.x = ball->left();
-            col_rect.y = ball->top() + ball->vel.y;
-            if (DoRectsCollide(col_rect, tile_rect)) {
-                ball->vel.y = -ball->vel.y;
-            }
+
         }
     }
 
