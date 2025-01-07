@@ -149,7 +149,6 @@ Shader *GetShader(const std::string path)
     struct stat file_data;
     if (stat((SHADER_PATH + path + ".vert").c_str(), &file_data)==0) {
         res->meta.vert_last_write = file_data.st_mtime;
-        printf("Wow!\n");
     }
     if (stat((SHADER_PATH + path + ".frag").c_str(), &file_data)==0) {
         res->meta.frag_last_write = file_data.st_mtime;

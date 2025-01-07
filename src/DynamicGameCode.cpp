@@ -130,7 +130,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         if (input->mouse_just_pressed)
         {
-            game_state->roundState = GameState::AIMING;
+            SetRoundState(GameState::AIMING);
         }
     }
 
@@ -140,16 +140,13 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         if (input->just_pressed[SDL_SCANCODE_F])
         {
             if (GetCurrentPlayer()->strokeCount == 0)
-            {                
-                game_state->roundState = GameState::POSITIONING_BALL;
+            {
+                SetRoundState(GameState::POSITIONING_BALL);
             }
         } else if (input->just_pressed[SDL_SCANCODE_5])
         {
             game_state->ability = ABILITY::PLACE_OBSTACLE;
-            game_state->roundState = GameState::USE_ABILITY;
-
-        } else if (input->just_pressed[SDL_SCANCODE_6])
-        {
+            SetRoundState(GameState::USE_ABILITY);
         }
     }
     
@@ -189,8 +186,8 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     sh_color->UniformM4fv("model",model);
     sh_color->UniformM4fv("view",cameraView);
 
-    UseShader(sh_texture);
     // background tiles
+    UseShader(sh_texture);
     int startx, starty, endx, endy;
     fRect camBounds = game_state->camera.GetBounds();
     startx = (int)(camBounds.x / 64.f) - 2;
@@ -243,6 +240,19 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 sh_texture->UniformM4fv("model", glm::mat4(1.0));
             }
         }
+    }
+
+    // Draw bouncers over tiles
+    for (i32 i=0; i<level->bouncerCount; i++)
+    {
+        v2 bouncerPos = level->bouncers[i];
+        iRect bouncerSrc = {64, 80, 64, 64};
+        fRect bouncerDest;
+        bouncerDest.w = 128;
+        bouncerDest.h = 128;
+        bouncerDest.x = bouncerPos.x - bouncerDest.w / 2;
+        bouncerDest.y = bouncerPos.y - bouncerDest.h / 2;
+        GL_DrawTexture(bouncerSrc, bouncerDest);
     }
 
     // Draw preview tiles for obstacle placement ability
@@ -434,6 +444,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             sh_texture->Uniform1i("_texture", endTurnText.gl_texture);
             GL_DrawTexture(endTurnText.bound, textDest);
             sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
+        
         } else if (game_state->roundState == GameState::USE_ABILITY)
         {
             if (game_state->ability == ABILITY::HEAVY_WIND)
@@ -468,7 +479,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                             windAbility->activated = true;
                             OnAbilityUse(game_state->ability);
                             ConsumeAbility(GetCurrentPlayer());
-                            RestoreAfterAbilityUse();
+                            game_state->ability = ABILITY::NONE;
                         }
                     } else
                     {
@@ -619,7 +630,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     (game_state->roundState == GameState::AIMING ||
                     game_state->roundState == GameState::POST_SHOT))
                 {
-                    game_state->roundState = GameState::USE_ABILITY;
+                    SetRoundState(GameState::USE_ABILITY);
                     game_state->ability = ability;
                     GetCurrentPlayer()->selectedAbility = i;
                     OnAbilitySelected(game_state->ability);
@@ -634,6 +645,35 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         }
     }
 
+    local_persist bool generatedDebugText=false;
+    local_persist generic_drawable debugText;
+    if (!generatedDebugText)
+    {
+        std::string stateText = "State: ";
+        if (game_state->roundState == GameState::AIMING)
+        {
+            stateText += "Aiming";
+        } else if (game_state->roundState == GameState::SHOOTING_MOTION)
+        {
+            stateText += "Shooting";
+        } else if (game_state->roundState == GameState::BALL_MOVING)
+        {
+            stateText += "Balls moving";
+        } else if (game_state->roundState == GameState::POST_SHOT)
+        {
+            stateText += "Post shot";
+        } else if (game_state->roundState == GameState::USE_ABILITY)
+        {
+            stateText += "Ability";
+        }
+        debugText = GenerateTextObj(GetFont("res/m5x7.ttf"), stateText, COLOR_WHITE);
+        debugText.scale = {4.f, 4.f};
+        debugText.pos = {16, WINDOW_HEIGHT - 16 - debugText.getDrawRect().h};
+    }
+
+    sh_texture->Uniform1i("_texture",debugText.gl_texture);
+    GL_DrawTexture(debugText.bound, debugText.getDrawRect());
+    sh_texture->Uniform1i("_texture",GetTexture("res/sprites.png"));
 
     // Render move ball button
     /*

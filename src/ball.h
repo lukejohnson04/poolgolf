@@ -42,4 +42,3 @@ internal void BallPredictCollisionResolve(Ball *a, Ball *b,
                                           v2 *a_dir, v2 *b_dir);
 internal void UpdateBall(Ball *ball, LevelState *level, float delta);
 
-

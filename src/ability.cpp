@@ -13,9 +13,10 @@ void OnAbilitySelected(i32 ability)
     {
         game_state->level = game_state->levelBuffer;
         ConsumeAbility(GetCurrentPlayer());
-        game_state->roundState = GameState::AIMING;
+        SetRoundState(GameState::AIMING);
         ChangeStrokes(GetCurrentPlayer(), GetCurrentPlayer()->strokeCount-1);
-    } else if (ability == ABILITY::RETRY)
+
+    } else if (ability == ABILITY::HEAVY_WIND)
     {
         game_state->abilityState.windAbility.needleRotation = 0.f;
         game_state->abilityState.windAbility.selectionTime = 0.f;
@@ -58,19 +59,19 @@ void OnAbilityUse(i32 ability)
         }            
     } else if (ability == ABILITY::HEAVY_WIND)
     {
-        float windForce = 100.f;
-        v2 windDir = ConvertAngleToVec(game_state->abilityState.windAbility.needleRotation);
+        float windForce = 5.f;
+        v2 windDir = -ConvertAngleToVec(game_state->abilityState.windAbility.needleRotation);
         windDir *= windForce;
         for (i32 i=0; i<level->ballCount; i++)
         {
             Ball *ball = &level->balls[i];
-            if (ball->active || ball->falling)
+            if (ball->active == false || ball->falling)
             {
                 continue;
             }
             ball->vel = windDir;
         }
-        game_state->roundState = GameState::BALL_MOVING;
+        SetRoundState(GameState::BALL_MOVING);
         
     } else if (ability == ABILITY::RETRY)
     {
@@ -88,7 +89,7 @@ void RestoreAfterAbilityUse()
         
     } else
     {
-        game_state->roundState = GameState::AIMING;
+        SetRoundState(GameState::AIMING);
     }
 }
 

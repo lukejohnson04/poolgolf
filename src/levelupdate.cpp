@@ -1,5 +1,6 @@
 
 const int HOLE_SIZE = 56;
+const float BOUNCER_STRENGTH = 2.f;
 
 void UpdateLevel(LevelState *level, float delta)
 {
@@ -30,7 +31,6 @@ void UpdateLevel(LevelState *level, float delta)
         {
             stopped = false;
         }
-
         
         UpdateBall(ball, level, delta);
         if (ball->falling)
@@ -68,8 +68,20 @@ void UpdateLevel(LevelState *level, float delta)
                 }
                 BallHandleCollision(ball, &level->balls[n]);
             }
+
+            for (int n = 0; n < level->bouncerCount; n++) {
+                // scuffed ahh solution :skull_emoji:
+                Ball bouncerBall = {};
+                bouncerBall.radius = 64.f;
+                bouncerBall.mass = 100000000.f;
+                bouncerBall.vel = -Normalize(ball->vel) * BOUNCER_STRENGTH;
+                bouncerBall.pos = level->bouncers[n];
+                
+                BallHandleCollision(ball, &bouncerBall);
+            }
         }
-        if (DistanceBetween(ball->pos, level->holePos) < HOLE_SIZE/2) {
+
+        if (DistanceBetween(ball->pos, level->holePos) < (HOLE_SIZE/2 + 2)) {
             ball->falling = true;
             ball->fallingInHole = true;
             game_state->players[i].madeBallOnCurrentRound = true;
@@ -84,6 +96,9 @@ void UpdateLevel(LevelState *level, float delta)
             level->ballsStoppedTimer = 0.f;
         } else
         {
+            // This code just implements a simple 1 second timer
+            // to stop the game after all the balls stop before
+            // continuing to the next segment
             level->ballsStoppedTimer += delta;
             if (level->ballsStoppedTimer > 1.f)
             {

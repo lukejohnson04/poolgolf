@@ -11,14 +11,21 @@ struct GameState {
     LevelState level;
     LevelState levelBuffer;
 
-    enum : int {
+    enum {
+        STATE_NONE,
+        
         POSITIONING_BALL,
+        
         AIMING,
         SHOOTING_MOTION,
         BALL_MOVING,
         POST_SHOT,
+
         USE_ABILITY
-    } roundState = AIMING;
+    };
+    
+    i32 roundState = AIMING;
+    int stateStack[3] = {STATE_NONE};
 
     i32 ability = ABILITY::NONE;
     union {
@@ -53,3 +60,21 @@ const glm::mat4 projection = glm::ortho(0.0f,
 
 internal PlayerData *GetCurrentPlayer();
 internal void InitializeGameMemory(GameMemory *memory);
+internal void SetRoundState(i32 state)
+{
+    game_state->stateStack[2] = game_state->stateStack[1];
+    game_state->stateStack[1] = game_state->stateStack[0];
+    game_state->stateStack[0] = state;
+    game_state->roundState = state;
+}
+
+internal i32 GetPreviousRoundState()
+{
+    return game_state->stateStack[1];
+}
+
+
+internal i32 GetRoundState(i32 index)
+{
+    return game_state->stateStack[index];
+}

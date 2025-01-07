@@ -25,15 +25,17 @@ void LoadLevelForFirstTime(LevelState *level)
         game_state->players[i].id = i;
         ChangeStrokes(&game_state->players[i], 0);
     }
-        
+    
     // load map
     SDL_Surface *mp_surf = IMG_Load("res/levels.png");
+
+    i32 levelNumber = 0;
     
     for (int i=0; i<MAP_SIZE; i++)
     {
         for (int j=0; j<MAP_SIZE; j++)
         {
-            Color pixel = getPixel(mp_surf, i, j);
+            Color pixel = getPixel(mp_surf, levelNumber * MAP_SIZE + i, j);
             level->tiles[i][j] = TILE_TYPE::GRASS;
             level->validSpawn[i][j] = false;
             if (pixel == COLOR_BLACK)
@@ -57,6 +59,10 @@ void LoadLevelForFirstTime(LevelState *level)
             {
                 // Item
                 level->itemDropSpawns[level->itemDropSpawnCount++] = {i*64.f + 32.f, j*64.f + 32.f};
+            } else if (pixel == 0xff9600ff)
+            {
+                level->tiles[i][j] = TILE_TYPE::GRASS;
+                level->bouncers[level->bouncerCount++] = {i*64.f + 32.f, j*64.f + 32.f};
             } else if (pixel == COLOR_GREEN)
             {
                 level->tiles[i][j] = TILE_TYPE::GRASS;
@@ -109,13 +115,14 @@ void InitializeNewRound(LevelState *level)
     {
         // Debug initialize test ability
         game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::HEAVY_WIND;
+        game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::PLACE_OBSTACLE;
     }
 }
 
 void StartTurn()
 {
     LevelState *level = &game_state->level;
-    game_state->roundState = GameState::AIMING;
+    SetRoundState(GameState::AIMING);
     level->cuePower = 0.f;
     level->shotAlready = false;
     AbilityCodeForWhenTurnStarts();
@@ -123,10 +130,8 @@ void StartTurn()
 
 void FinishTurn();
 
-void OnBallsStopMoving()
+void ProcessCollectedItems()
 {
-    LevelState *level = &game_state->level;
-    i32 unfinishedPlayers = 0;
     for (int i=0; i<game_state->playerCount; i++)
     {
         PlayerData *player = &game_state->players[i];
@@ -141,22 +146,77 @@ void OnBallsStopMoving()
             }
             player->unprocessedItems = 0;
         }
+    }    
+}
 
-        if (player->madeBallOnCurrentRound == false)
+i32 GetUnfinishedPlayers()
+{    
+    i32 unfinishedPlayers = 0;
+    for (int i=0; i<game_state->playerCount; i++)
+    {        
+        if (game_state->players[i].madeBallOnCurrentRound == false)
         {
             unfinishedPlayers++;
         }
     }
-    
-    if (unfinishedPlayers == 0 || GetCurrentPlayer()->abilityCount == 0)
+    return unfinishedPlayers;
+}
+
+void OnBallsStopMoving()
+{
+    ProcessCollectedItems();
+    i32 stillPlaying = GetUnfinishedPlayers();
+
+    if (stillPlaying == 0)
+    {
+        InitializeNewRound(&game_state->level);
+        StartTurn();
+        return;
+    }
+
+    if (GetPreviousRoundState() == GameState::USE_ABILITY)
+    {
+        i32 returnState = GetRoundState(2);
+        // Reset to the round state before the ability was used.
+        // The exception is if you're going to
+        // the post shot state and there are no abilities to be used,
+        // just fall through and switch turns as usual.
+        if (returnState == GameState::POST_SHOT &&
+            GetCurrentPlayer()->abilityCount != 0)
+        {
+            SetRoundState(returnState);
+            return;
+        // The other exception is if the prestate was aiming,
+        // and the ball is now in the hole, skip to the post state
+        // or end the turn depending on if the player has abilities
+        } else if (returnState == GameState::AIMING)
+        {
+            if (GetCurrentPlayer()->madeBallOnCurrentRound == true)
+            {
+                if (GetCurrentPlayer()->abilityCount != 0)
+                {
+                    SetRoundState(GameState::POST_SHOT);
+                } else
+                {
+                    FinishTurn();
+                }
+            } else
+            {
+                SetRoundState(returnState);
+            }
+            return;            
+        }
+    }
+
+
+    if (GetCurrentPlayer()->abilityCount == 0)
     {
         FinishTurn();
         return;
     }
-    
-    // Ability stage
-    game_state->roundState = GameState::POST_SHOT;
-    level->shotAlready = true;
+
+    SetRoundState(GameState::POST_SHOT);
+    game_state->level.shotAlready = true;
 }
 
 void FinishTurn()
@@ -165,7 +225,7 @@ void FinishTurn()
 
     float greatestDistance=0.f;
     i32 greatestDistPlayer=0;
-    i32 unfinishedPlayers=0;
+
     for (int i=0; i<game_state->playerCount; i++)
     {
         PlayerData *player = &game_state->players[i];
@@ -175,7 +235,6 @@ void FinishTurn()
             continue;
         }
 
-        unfinishedPlayers++;
         float distToHole = DistanceBetween(
             player->ball->pos,
             level->holePos);
@@ -186,14 +245,6 @@ void FinishTurn()
         }
     }
 
-    if (unfinishedPlayers == 0)
-    {
-        InitializeNewRound(level);
-        StartTurn();
-    } else
-    {
-        game_state->currentPlayer = greatestDistPlayer;
-        StartTurn();
-    }
+    game_state->currentPlayer = greatestDistPlayer;
+    StartTurn();
 }
-

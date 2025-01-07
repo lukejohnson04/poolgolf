@@ -4,13 +4,18 @@ struct LevelState
 {
     u8 tiles[MAP_SIZE][MAP_SIZE];
     u8 validSpawn[MAP_SIZE][MAP_SIZE];
+
     v2 itemDrops[64];
     v2 itemDropSpawns[64];
+    v2 bouncers[32];
+    v2 obstacles[32];
     Ball balls[16];
 
     i32 itemDropCount = 0;
     i32 itemDropSpawnCount = 0;
+    i32 bouncerCount = 0;
     i32 ballCount = 0;
+    i32 obstacleCount = 0;
     
     float ballsStoppedTimer = 0.f;
     v2 ballSpawnPosition;
@@ -27,4 +32,3 @@ struct LevelState
 };
 
 void LoadLevelForFirstTime(LevelState *level);
-
