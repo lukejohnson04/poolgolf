@@ -1,37 +1,4 @@
 
-const float RESTITUTION = 0.95f;
-const float FRICTION = 3.25f;
-const float GRAVITY = 11.f;
-
-struct Ball
-{
-    v2 pos;
-    v2 vel;
-    float radius;
-    float mass;
-    
-    bool active=false;
-    bool falling=false;
-    bool fallingInHole=false;
-    float fallTimer=0.f;
-
-    float left() {
-        return pos.x - radius;
-    }
-
-    float right() {
-        return pos.x + radius;
-    }
-
-    float top() {
-        return pos.y - radius;
-    }
-
-    float bottom() {
-        return pos.y + radius;
-    }
-};
-
 internal
 void BallInit(Ball *a)
 {
@@ -42,7 +9,7 @@ void BallInit(Ball *a)
     a->active = true;
 }
 
-
+internal
 v2 BallGetCollisionPoint(Ball *a, Ball *b, v2 dir)
 {
     v2 closest = GetClosestPointOnLine(a->pos, a->pos + dir, b->pos);
@@ -63,6 +30,7 @@ v2 BallGetCollisionPoint(Ball *a, Ball *b, v2 dir)
     return closest;
 }
 
+internal
 void BallHandleCollision(Ball *a, Ball *b)
 {
     v2 closest = BallGetCollisionPoint(a, b, a->vel);
@@ -95,7 +63,7 @@ void BallHandleCollision(Ball *a, Ball *b)
     a->pos = a->pos + (Normalize(a->vel) * offset);
 }
 
-
+internal
 void BallPredictCollisionResolve(Ball *a, Ball *b, v2 impact_dir, v2 collision_point, v2 *a_dir, v2 *b_dir)
 {
     // just calculate simply for now
@@ -116,7 +84,8 @@ void BallPredictCollisionResolve(Ball *a, Ball *b, v2 impact_dir, v2 collision_p
     *b_dir = dir * (newVVAL_2 - vval_2);
 }
 
-void UpdateBall(Ball *ball, int tiles[][MAP_SIZE], float delta)
+internal
+void UpdateBall(Ball *ball, LevelState *level, float delta)
 {
     if (!ball->active)
     {
@@ -151,7 +120,7 @@ void UpdateBall(Ball *ball, int tiles[][MAP_SIZE], float delta)
     ball->vel = vel;
     for (int i = 0; i < MAP_SIZE; i++) {
         for (int n = 0; n < MAP_SIZE; n++) {
-            i32 tile = tiles[i][n];
+            i32 tile = level->tiles[i][n];
             if (tile != TILE_TYPE::WALL &&
                 tile != TILE_TYPE::WATER &&
                 IsTileDownhill(tile) == false

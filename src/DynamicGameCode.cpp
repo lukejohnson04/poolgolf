@@ -20,18 +20,20 @@
 #include "ability.h"
 
 
-const int MAP_SIZE = 256;
+const int MAP_SIZE = 128;
 
-int craterPattern[7][7];
+TILE_TYPE craterPattern[7][7];
 
 #include "shapes.cpp"
-#include "ball.cpp"
+#include "ball.h"
 #include "camera.cpp"
 
 #include "player.cpp"
+#include "level.h"
 #include "game_state.h"
 #include "level.cpp"
 #include "game_state.cpp"
+#include "ball.cpp"
 
 #include "cuestick.cpp"
 #include "levelupdate.cpp"
@@ -61,7 +63,8 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     ControlCueStick(delta);
 
     // Update balls
-    UpdateLevel(delta);
+    LevelState *level = &game_state->level;
+    UpdateLevel(level, delta);
 
     if (input->just_pressed[SDL_SCANCODE_GRAVE])
     {
@@ -77,7 +80,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     {
         if (game_state->ability == ABILITY::CRATER)
         {
-            v2 cameraDest = game_state->balls[game_state->abilityState.craterAbility.selectedBall].pos - v2(WINDOW_WIDTH/2.f, WINDOW_HEIGHT/2.f);
+            v2 cameraDest = level->balls[game_state->abilityState.craterAbility.selectedBall].pos - v2(WINDOW_WIDTH/2.f, WINDOW_HEIGHT/2.f);
             game_state->camera.pos = Lerp(game_state->camera.pos, cameraDest, 0.05f);
         }
     } else if (game_state->autocam)
@@ -120,7 +123,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         tilePos.x = CLAMP(0, MAP_SIZE, tilePos.x);
         tilePos.y = CLAMP(0, MAP_SIZE, tilePos.y);
 
-        if (game_state->validSpawn[tilePos.x][tilePos.y])
+        if (level->validSpawn[tilePos.x][tilePos.y])
         {
             GetCurrentPlayer()->ball->pos = mPos;
         }
@@ -205,13 +208,13 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         for (int j=starty; j<endy; j++)
         {
             v2 pos = GetTileWorldPos(i,j);
-            i32 tile = game_state->tiles[i][j];
+            i32 tile = level->tiles[i][j];
             iRect src = {0,32,32,32};
             iRect dest = {i*64,j*64,64,64};
             if (tile == TILE_TYPE::GRASS)
             {
                 if (game_state->roundState == GameState::POSITIONING_BALL &&
-                    game_state->validSpawn[i][j])
+                    level->validSpawn[i][j])
                 {
                     src.x = 96;
                 } else
@@ -294,42 +297,42 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 // This is much easier to do inline rather than putting it in
                 // OnAbilityUse because the placements of the tiles needed for
                 // the placement are already calculated for previewing
-                game_state->tiles[placement.x][placement.y] = TILE_TYPE::WALL;
-                game_state->tiles[secondPlacement.x][secondPlacement.y] = TILE_TYPE::WALL;
+                level->tiles[placement.x][placement.y] = TILE_TYPE::WALL;
+                level->tiles[secondPlacement.x][secondPlacement.y] = TILE_TYPE::WALL;
 
                 ConsumeAbility(GetCurrentPlayer());
                 RestoreAfterAbilityUse();
             }
-                
         }
     }
 
     // Draw hole
-    fRect holeDest = {game_state->holePos.x - HOLE_SIZE/2,
-        game_state->holePos.y - HOLE_SIZE/2,
+    fRect holeDest = {level->holePos.x - HOLE_SIZE/2,
+        level->holePos.y - HOLE_SIZE/2,
         HOLE_SIZE, HOLE_SIZE};
     GL_DrawTexture({0,80,64,64}, holeDest);
 
     // Balls
-    for (int i=0; i<game_state->ballCount; i++)
+    for (int i=0; i<level->ballCount; i++)
     {
-        if (game_state->balls[i].active == false)
+        Ball *ball = &level->balls[i];
+        if (ball->active == false)
         {
             continue;
         }
         
         iRect src = {0,0,32,32};        
         GL_DrawTexture(src,{
-                (i32)game_state->balls[i].left(),
-                (i32)game_state->balls[i].top(),
-                (i32)(game_state->balls[i].radius*2.f),
-                (i32)(game_state->balls[i].radius*2.f)});
+                (i32)ball->left(),
+                (i32)ball->top(),
+                (i32)(ball->radius*2.f),
+                (i32)(ball->radius*2.f)});
     }
 
     // Draw item drops
-    for (int i=0; i<game_state->itemDropCount; i++)
+    for (int i=0; i<level->itemDropCount; i++)
     {
-        v2 pos = game_state->itemDrops[i];
+        v2 pos = level->itemDrops[i];
         iRect dest = iRect((i32)(pos.x - 32.f), (i32)(pos.y - 32.f), 64, 64);
         dest.y += (i32)(sin(game_state->globalTimer * 3.0) * 6.0);
         GL_DrawTexture({160,32,32,32}, dest);
@@ -340,28 +343,28 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         game_state->roundState == GameState::AIMING ||
         game_state->roundState == GameState::BALL_MOVING)
     {
-        float cueVisualDistance = game_state->cuePower + 16.f;
+        float cueVisualDistance = level->cuePower + 16.f;
         v2 cueBallPos = GetCurrentPlayer()->ball->pos;
         if (game_state->roundState == GameState::SHOOTING_MOTION)
         {
             float maxCueDistance = cueVisualDistance + 0.75f * cueVisualDistance;
-            if (game_state->shootingMotionTimer < 0.75f)
+            if (level->shootingMotionTimer < 0.75f)
             {
-                cueVisualDistance += game_state->shootingMotionTimer * cueVisualDistance;
+                cueVisualDistance += level->shootingMotionTimer * cueVisualDistance;
             } else
             {
-                float t = (game_state->shootingMotionTimer - 0.75f) / 0.25f;
+                float t = (level->shootingMotionTimer - 0.75f) / 0.25f;
                 cueVisualDistance = Lerp(maxCueDistance, 0.f, t);
             }
         } else if (game_state->roundState == GameState::BALL_MOVING)
         {
             cueVisualDistance = 0.f;
-            cueBallPos = game_state->ballStartPosition;
+            cueBallPos = level->ballStartPosition;
         }
 
         fRect dest = {cueBallPos.x - 16.f - 192.f - cueVisualDistance, cueBallPos.y - 16.f + 8.f, 192.f, 16.f};
         v2 cueStickOrigin = {192.f + GetCurrentPlayer()->ball->radius + cueVisualDistance, 8.f};
-        glm::mat4 stickModelMatrix = rotate_model_matrix(game_state->cueRotation, dest, cueStickOrigin);
+        glm::mat4 stickModelMatrix = rotate_model_matrix(level->cueRotation, dest, cueStickOrigin);
         sh_texture->UniformM4fv("model", stickModelMatrix);
         GL_DrawTexture({0,64,192,16},(iRect)dest);
         sh_texture->UniformM4fv("model", model);        
@@ -433,7 +436,60 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
         } else if (game_state->roundState == GameState::USE_ABILITY)
         {
-            if (game_state->ability == ABILITY::CRATER)
+            if (game_state->ability == ABILITY::HEAVY_WIND)
+            {
+                auto *windAbility = &game_state->abilityState.windAbility;
+                if (windAbility->activated == false)
+                {
+                    iRect compassSrc = {0, 320, 48, 48};
+                    iRect needleSrc = {48, 320, 48, 48};
+
+                    float scale = 4.f;
+                    fRect compassDest;
+                    compassDest.w = compassSrc.w * scale;
+                    compassDest.h = compassSrc.h * scale;
+                    compassDest.x = WINDOW_WIDTH/2 - compassDest.w/2;
+                    compassDest.y = WINDOW_HEIGHT/2 - compassDest.h/2;
+                
+                    fRect needleDest = {
+                        WINDOW_WIDTH/2 - (needleSrc.w*scale)/2.f,
+                        WINDOW_HEIGHT/2 - (needleSrc.h*scale)/2.f,
+                        needleSrc.w * scale,
+                        needleSrc.h * scale};
+
+                    float needleRotationSpeed = 2.5f * PIf;
+                    float needleRadians;
+                    if (windAbility->selectionTime != 0.f)
+                    {
+                        needleRadians = windAbility->needleRotation;
+                        float timeSinceSelection = game_state->globalTimer - windAbility->selectionTime;
+                        if (timeSinceSelection > 1.5f)
+                        {
+                            windAbility->activated = true;
+                            OnAbilityUse(game_state->ability);
+                            ConsumeAbility(GetCurrentPlayer());
+                            RestoreAfterAbilityUse();
+                        }
+                    } else
+                    {
+                        needleRadians = needleRotationSpeed * game_state->globalTimer;
+                        if (input->just_pressed[SDL_SCANCODE_SPACE])
+                        {
+                            windAbility->needleRotation = needleRadians;
+                            windAbility->selectionTime = game_state->globalTimer;
+                        }
+                    }
+
+                    glm::mat4 needleRotationMatrix = rotate_model_matrix(
+                        needleRadians, needleDest, {compassDest.w/2,compassDest.h/2});
+
+                    GL_DrawTexture(compassSrc, compassDest);
+                    sh_texture->UniformM4fv("model", needleRotationMatrix);
+                    GL_DrawTexture(needleSrc, needleDest);
+                    sh_texture->UniformM4fv("model", glm::mat4(1.0));                    
+                }
+                
+            } else if (game_state->ability == ABILITY::CRATER)
             {
                 iRect cycleLeftDest = {WINDOW_WIDTH/2 - 300 - 64, WINDOW_HEIGHT/2, 64, 128};
                 iRect cycleRightDest = {WINDOW_WIDTH/2 + 300, WINDOW_HEIGHT/2, 64, 128};
@@ -455,9 +511,9 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                                 selectedBall--;
                                 if (selectedBall < 0)
                                 {
-                                    selectedBall = game_state->ballCount-1;
+                                    selectedBall = level->ballCount-1;
                                 }
-                            } while (game_state->balls[selectedBall].active == false);
+                            } while (level->balls[selectedBall].active == false);
                         }
                     }
                 }
@@ -472,11 +528,11 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                             do
                             {
                                 selectedBall++;
-                                if (selectedBall > game_state->ballCount-1)
+                                if (selectedBall > level->ballCount-1)
                                 {
                                     selectedBall = 0;
                                 }
-                            } while (game_state->balls[selectedBall].active == false);
+                            } while (level->balls[selectedBall].active == false);
                         }
                     }
                 }
@@ -509,7 +565,6 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                         if (input->mouse_just_pressed)
                         {
                             OnAbilityUse(game_state->ability);
-
                             ConsumeAbility(GetCurrentPlayer());
                             RestoreAfterAbilityUse();
                         }
@@ -560,7 +615,9 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             v2i mPos = GetMousePosition();
             if (dest.contains(mPos))
             {
-                if (input->mouse_just_pressed)
+                if (input->mouse_just_pressed &&
+                    (game_state->roundState == GameState::AIMING ||
+                    game_state->roundState == GameState::POST_SHOT))
                 {
                     game_state->roundState = GameState::USE_ABILITY;
                     game_state->ability = ability;

@@ -4,7 +4,7 @@ v2 GetTileWorldPos(int posx, int posy) {
     return v2(posx * 64.f, posy * 64.f);
 }
 
-enum TILE_TYPE
+enum TILE_TYPE : u8
 {
     TT_NONE,
     WATER,

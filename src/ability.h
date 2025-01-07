@@ -15,3 +15,4 @@ enum ABILITY
 
 void OnAbilitySelected(i32 ability);
 void OnAbilityUse(i32 ability);
+void AbilityCodeForWhenTurnStarts();

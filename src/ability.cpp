@@ -8,21 +8,34 @@ void OnAbilitySelected(i32 ability)
     } else if (ability == ABILITY::PLACE_OBSTACLE)
     {
         printf("Obstacle place selected\n");
+        
+    } else if (ability == ABILITY::RETRY)
+    {
+        game_state->level = game_state->levelBuffer;
+        ConsumeAbility(GetCurrentPlayer());
+        game_state->roundState = GameState::AIMING;
+        ChangeStrokes(GetCurrentPlayer(), GetCurrentPlayer()->strokeCount-1);
+    } else if (ability == ABILITY::RETRY)
+    {
+        game_state->abilityState.windAbility.needleRotation = 0.f;
+        game_state->abilityState.windAbility.selectionTime = 0.f;
+        game_state->abilityState.windAbility.activated = false;
     }
 }
 
 void OnAbilityUse(i32 ability)
 {
+    LevelState *level = &game_state->level;
     if (ability == ABILITY::CRATER)
     {
         // Place a crater around the selected ball
-        v2 ballPos = game_state->balls[game_state->abilityState.craterAbility.selectedBall].pos;
+        v2 ballPos = level->balls[game_state->abilityState.craterAbility.selectedBall].pos;
         v2i ballTile = (v2i)(ballPos * (1.f/64.f));
         for (int i=0; i<7; i++)
         {
             for (int j=0; j<7; j++)
             {
-                i32 craterValue = craterPattern[i][j];
+                TILE_TYPE craterValue = craterPattern[i][j];
                 v2i tilePos = {ballTile.x - 3 + i, ballTile.y - 3 + j};
                 if (tilePos.x < 0 || tilePos.y < 0 ||
                     tilePos.x >= MAP_SIZE || tilePos.y >= MAP_SIZE)
@@ -30,7 +43,7 @@ void OnAbilityUse(i32 ability)
                     continue;
                 }
                 
-                i32 tileType = game_state->tiles[tilePos.x][tilePos.y];
+                i32 tileType = level->tiles[tilePos.x][tilePos.y];
                 if (tileType != TILE_TYPE::GRASS &&
                     IsTileDownhill(tileType) == false)
                 {
@@ -39,17 +52,37 @@ void OnAbilityUse(i32 ability)
                     
                 if (craterValue != TILE_TYPE::TT_NONE)
                 {
-                    game_state->tiles[tilePos.x][tilePos.y] = craterValue;
+                    level->tiles[tilePos.x][tilePos.y] = craterValue;
                 }
             }
         }            
+    } else if (ability == ABILITY::HEAVY_WIND)
+    {
+        float windForce = 100.f;
+        v2 windDir = ConvertAngleToVec(game_state->abilityState.windAbility.needleRotation);
+        windDir *= windForce;
+        for (i32 i=0; i<level->ballCount; i++)
+        {
+            Ball *ball = &level->balls[i];
+            if (ball->active || ball->falling)
+            {
+                continue;
+            }
+            ball->vel = windDir;
+        }
+        game_state->roundState = GameState::BALL_MOVING;
+        
+    } else if (ability == ABILITY::RETRY)
+    {
+        printf("Used retry! 2x\n");
     }
 }
 
 void RestoreAfterAbilityUse()
 {
+    LevelState *level = &game_state->level;
     game_state->ability = ABILITY::NONE;
-    if (game_state->shotAlready)
+    if (level->shotAlready)
     {
         OnBallsStopMoving();
         
@@ -58,3 +91,18 @@ void RestoreAfterAbilityUse()
         game_state->roundState = GameState::AIMING;
     }
 }
+
+void AbilityCodeForWhenTurnStarts()
+{
+    PlayerData *player = GetCurrentPlayer();
+    for (i32 i=0; i<player->abilityCount; i++)
+    {
+        i32 ability = player->abilities[i];
+        if (ability == ABILITY::RETRY)
+        {
+            // Create save of the world
+            game_state->levelBuffer = game_state->level;
+        }
+    }
+}
+

@@ -31,62 +31,7 @@ void InitializeGameMemory(GameMemory *memory)
 
     srand((u32)time(0));
 
-    i32 players = 2;
-    for (int i=0; i<players; i++)
-    {
-        game_state->playerCount++;
-        game_state->ballCount++;
-        BallInit(&game_state->balls[i]);
-        game_state->players[i].ball = &game_state->balls[i];
-        game_state->players[i].id = i;
-        ChangeStrokes(&game_state->players[i], 0);
-    }
-    
-    // load map
-    SDL_Surface *mp_surf = IMG_Load("res/levels.png");
-    
-    for (int i=0; i<MAP_SIZE; i++)
-    {
-        for (int j=0; j<MAP_SIZE; j++)
-        {
-            Color pixel = getPixel(mp_surf, i, j);
-            game_state->tiles[i][j] = TILE_TYPE::GRASS;
-            game_state->validSpawn[i][j] = false;
-            if (pixel == COLOR_BLACK)
-            {
-                game_state->tiles[i][j] = TILE_TYPE::WALL;
-            } else if (pixel == COLOR_YELLOW)
-            {
-                game_state->holePos = {i*64.f, j*64.f};
-            } else if (pixel == COLOR_WHITE)
-            {
-                game_state->ballSpawnPosition = {i*64.f, j*64.f};
-                for (i32 n=0; n<game_state->playerCount; n++)
-                {
-                    game_state->players[n].ball->pos = game_state->ballSpawnPosition;
-                }
-                game_state->validSpawn[i][j] = true;
-            } else if (pixel == COLOR_BLUE)
-            {
-                game_state->tiles[i][j] = TILE_TYPE::WATER;
-            } else if (pixel == COLOR_RED)
-            {
-                // Item
-                game_state->itemDropSpawns[game_state->itemDropSpawnCount++] = {i*64.f + 32.f, j*64.f + 32.f};
-            } else if (pixel == COLOR_GREEN)
-            {
-                game_state->tiles[i][j] = TILE_TYPE::GRASS;
-            } else if (pixel == 0x648c1eff)
-            {
-                game_state->validSpawn[i][j] = true;
-                
-            } else
-            {
-                game_state->tiles[i][j] = GetDownhillTileFromPixel(pixel);
-            }
-        }
-    }
-    SDL_FreeSurface(mp_surf);
+    LoadLevelForFirstTime(&game_state->level);
 
     SDL_Surface *craterSurf = IMG_Load("res/craterPattern.png");
     for (int i=0; i<7; i++)
@@ -105,7 +50,8 @@ void InitializeGameMemory(GameMemory *memory)
     }
     SDL_FreeSurface(craterSurf);
 
-    InitializeNewRound();
+    InitializeNewRound(&game_state->level);
+    StartTurn();
 
     memory->is_initialized = true;
     std::cout << "Initialized game memory\n";
