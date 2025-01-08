@@ -31,7 +31,7 @@ struct GameState {
     union {
         struct
         {
-            i32 rotation = 0;
+            float rotation = 0;
         } obstacleAbility;
 
         struct

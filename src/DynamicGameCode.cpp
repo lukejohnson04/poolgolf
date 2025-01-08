@@ -255,31 +255,45 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         GL_DrawTexture(bouncerSrc, bouncerDest);
     }
 
+    // Draw obstacles
+    for (i32 i=0; i<level->obstacleCount; i++)
+    {
+        v2 obstaclePos = level->obstacles[i].pos;
+        iRect obstacleSrc = {192,32,64,18};
+        fRect obstacleDest;
+        obstacleDest.w = 128;
+        obstacleDest.h = 36;
+        obstacleDest.x = obstaclePos.x - obstacleDest.w / 2;
+        obstacleDest.y = obstaclePos.y - obstacleDest.h / 2;
+
+        glm::mat4 rotMat = rotate_model_matrix(level->obstacles[i].rot, obstacleDest, {obstacleDest.w/2,obstacleDest.h/2});
+        sh_texture->UniformM4fv("model", rotMat);
+        GL_DrawTexture(obstacleSrc, obstacleDest);
+    }
+    sh_texture->UniformM4fv("model", glm::mat4(1.0));
+
+
     // Draw preview tiles for obstacle placement ability
     if (game_state->roundState == GameState::USE_ABILITY)
     {
         if (game_state->ability == ABILITY::PLACE_OBSTACLE)
         {
-            int rot = game_state->abilityState.obstacleAbility.rotation;
-            if (input->just_pressed[SDL_SCANCODE_LEFT])
+            
+            float rot = game_state->abilityState.obstacleAbility.rotation;
+            float rotSpeed = 1.f * delta;
+            if (input->is_pressed[SDL_SCANCODE_LEFT])
             {
-                rot -= 1;
+                rot -= rotSpeed;
             }
-            if (input->just_pressed[SDL_SCANCODE_RIGHT])
+            if (input->is_pressed[SDL_SCANCODE_RIGHT])
             {
-                rot += 1;
+                rot += rotSpeed;
             }
-
-            if (rot < 0)
-            {
-                rot = 3;
-            }
-            if (rot >= 4)
-                rot = 0;
 
             game_state->abilityState.obstacleAbility.rotation = rot;
 
             v2i placement = GetMouseWorldPos(&game_state->camera);
+            /*
             placement.x /= 64;
             placement.y /= 64;
             v2i secondPlacement = placement;
@@ -296,20 +310,33 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             {
                 secondPlacement.y--;
             }
+            */
+            iRect obstacleSrc = {192,32,64,18};
+            fRect obstacleDest;
+            obstacleDest.w = 128;
+            obstacleDest.h = 36;
+            obstacleDest.x = placement.x - obstacleDest.w / 2;
+            obstacleDest.y = placement.y - obstacleDest.h / 2;
 
-            sh_texture->Uniform4f("colorMod",0.f,0.f,0.f,0.5f);
-            GL_DrawTexture({32,32,32,32}, {placement.x * 64, placement.y * 64, 64, 64});
-            GL_DrawTexture({32,32,32,32}, {secondPlacement.x * 64, secondPlacement.y * 64, 64, 64});
+            sh_texture->Uniform4f("colorMod",1.f,1.f,1.f,0.5f);
+            glm::mat4 rotMat = rotate_model_matrix(rot, obstacleDest, {obstacleDest.w/2,obstacleDest.h/2});
+            sh_texture->UniformM4fv("model", rotMat);
+            GL_DrawTexture(obstacleSrc, obstacleDest);
+            sh_texture->UniformM4fv("model", glm::mat4(1.0));
             sh_texture->Uniform4f("colorMod",1.f,1.f,1.f,1.f);
+            
+            //GL_DrawTexture({32,32,32,32}, {placement.x * 64, placement.y * 64, 64, 64});
+            //GL_DrawTexture({32,32,32,32}, {secondPlacement.x * 64, secondPlacement.y * 64, 64, 64});
             
             if (input->mouse_just_pressed)
             {
                 // This is much easier to do inline rather than putting it in
                 // OnAbilityUse because the placements of the tiles needed for
                 // the placement are already calculated for previewing
-                level->tiles[placement.x][placement.y] = TILE_TYPE::WALL;
-                level->tiles[secondPlacement.x][secondPlacement.y] = TILE_TYPE::WALL;
-
+                Obstacle obstacle;
+                obstacle.pos = placement;
+                obstacle.rot = rot;
+                level->obstacles[level->obstacleCount++] = obstacle;
                 ConsumeAbility(GetCurrentPlayer());
                 RestoreAfterAbilityUse();
             }

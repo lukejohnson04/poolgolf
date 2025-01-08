@@ -1,4 +1,10 @@
 
+struct Obstacle
+{
+    v2 pos;
+    float rot;
+};
+
 // All data for the level at a given moment
 struct LevelState
 {
@@ -8,7 +14,7 @@ struct LevelState
     v2 itemDrops[64];
     v2 itemDropSpawns[64];
     v2 bouncers[32];
-    v2 obstacles[32];
+    Obstacle obstacles[32];
     Ball balls[16];
 
     i32 itemDropCount = 0;

@@ -167,5 +167,46 @@ void UpdateBall(Ball *ball, LevelState *level, float delta)
         }
     }
 
-    ball->pos += ball->vel;
+    float unprocessedVelocity = Length(ball->vel);
+    // obstacle collision
+    for (i32 i=0; i<level->obstacleCount; i++)
+    {
+        v2 futurePos = ball->pos + (Normalize(ball->vel) * unprocessedVelocity);
+        Obstacle obstacle = level->obstacles[i];
+        float obstacleRot = obstacle.rot;
+        // Translate the ball to the obstacles coordinate space
+        v2 c = futurePos - obstacle.pos;
+        c = V2Rotate(c, -obstacleRot);
+        float oWidth = 128;
+        float oHeight = 36;
+        v2 clamped;
+        clamped.x = CLAMP(-oWidth/2, oWidth/2, c.x);
+        clamped.y = CLAMP(-oHeight/2, oHeight/2, c.y);
+
+        float dx = c.x - clamped.x;
+        float dy = c.y - clamped.y;
+        float distSq = dx * dx + dy * dy;
+
+        float r = ball->radius;
+        if (distSq <= (r * r))
+        {
+            // collision
+            printf("Collision\n");
+            v2 clampedPointWorld = V2Rotate(clamped, obstacleRot);
+            clampedPointWorld += obstacle.pos;
+
+            v2 collisionNormalUnnormalized = futurePos - clampedPointWorld;
+            v2 collisionNormal = Normalize(collisionNormalUnnormalized);
+
+            // Push ball out
+            float d = Length(collisionNormalUnnormalized);
+            ball->pos += collisionNormal * (r - d);
+            unprocessedVelocity -= (r - d);
+
+            // Reflect velocity
+            ball->vel -= (collisionNormal * (2.f * V2DotProduct(ball->vel, collisionNormal)));
+        }
+    }
+
+    ball->pos += Normalize(ball->vel) * unprocessedVelocity;
 }
