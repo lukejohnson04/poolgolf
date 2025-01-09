@@ -154,16 +154,23 @@ void UpdateBall(Ball *ball, LevelState *level, float delta)
                         float degrees = (tile - TILE_TYPE::DOWNHILL_RIGHT) / 8.f;
                         degrees *= PIf * 2.f;
                         slopeDirection = V2Rotate(slopeDirection, degrees);
-                        float g = GRAVITY * (float)sin(45);
+                        // Angle of the slope
+                        float g = GRAVITY * (float)sin(deg_2_rad(45));
                         
                         ball->vel += slopeDirection * (g * delta);
+                    
+                    // Tile is water
                     } else
                     {
-                        ball->falling = true;
+                        // Leniency for water tiles
+                        if (DistanceBetween(ball->pos, v2(tile_rect.x+tile_rect.w/2,tile_rect.y+tile_rect.h/2)) <
+                            tile_rect.w/2 - 2)
+                        {
+                            ball->falling = true;
+                        }
                     }
                 }
             }
-
         }
     }
 

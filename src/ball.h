@@ -1,7 +1,7 @@
 
 const float RESTITUTION = 0.95f;
-const float FRICTION = 3.25f;
-const float GRAVITY = 11.f;
+const float FRICTION = 4.25f;
+const float GRAVITY = 9.8f;
 
 struct Ball
 {

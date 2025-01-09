@@ -78,7 +78,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     if (game_state->roundState == GameState::USE_ABILITY)
     {
-        if (game_state->ability == ABILITY::CRATER)
+        if (game_state->ability == ABILITY::CRATER || game_state->ability == ABILITY::SHANK)
         {
             v2 cameraDest = level->balls[game_state->abilityState.craterAbility.selectedBall].pos - v2(WINDOW_WIDTH/2.f, WINDOW_HEIGHT/2.f);
             game_state->camera.pos = Lerp(game_state->camera.pos, cameraDest, 0.05f);
@@ -210,10 +210,14 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             iRect dest = {i*64,j*64,64,64};
             if (tile == TILE_TYPE::GRASS)
             {
-                if (game_state->roundState == GameState::POSITIONING_BALL &&
-                    level->validSpawn[i][j])
+                if (level->validSpawn[i][j])
                 {
                     src.x = 96;
+                    src.y = 0;
+                    if (game_state->roundState == GameState::POSITIONING_BALL)
+                    {
+                        src.y = 32;
+                    }
                 } else
                 {                    
                     src.x = 0;
@@ -281,11 +285,11 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             
             float rot = game_state->abilityState.obstacleAbility.rotation;
             float rotSpeed = 1.f * delta;
-            if (input->is_pressed[SDL_SCANCODE_LEFT])
+            if (input->is_pressed[SDL_SCANCODE_Q])
             {
                 rot -= rotSpeed;
             }
-            if (input->is_pressed[SDL_SCANCODE_RIGHT])
+            if (input->is_pressed[SDL_SCANCODE_E])
             {
                 rot += rotSpeed;
             }
@@ -293,24 +297,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             game_state->abilityState.obstacleAbility.rotation = rot;
 
             v2i placement = GetMouseWorldPos(&game_state->camera);
-            /*
-            placement.x /= 64;
-            placement.y /= 64;
-            v2i secondPlacement = placement;
-            if (rot == 0)
-            {
-                secondPlacement.x++;
-            } else if (rot == 1)
-            {
-                secondPlacement.y++;
-            } else if (rot == 2)
-            {
-                secondPlacement.x--;
-            } else if (rot == 3)
-            {
-                secondPlacement.y--;
-            }
-            */
+            
             iRect obstacleSrc = {192,32,64,18};
             fRect obstacleDest;
             obstacleDest.w = 128;
@@ -337,6 +324,27 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 obstacle.pos = placement;
                 obstacle.rot = rot;
                 level->obstacles[level->obstacleCount++] = obstacle;
+                ConsumeAbility(GetCurrentPlayer());
+                RestoreAfterAbilityUse();
+            }
+        } else if (game_state->ability == ABILITY::PLACE_BOUNCER)
+        {
+            v2i bouncerPos = GetMouseWorldPos(&game_state->camera);
+
+            iRect bouncerSrc = {64, 80, 64, 64};
+            fRect bouncerDest;
+            bouncerDest.w = 128;
+            bouncerDest.h = 128;
+            bouncerDest.x = bouncerPos.x - bouncerDest.w / 2;
+            bouncerDest.y = bouncerPos.y - bouncerDest.h / 2;
+
+            sh_texture->Uniform4f("colorMod",1.f,1.f,1.f,0.5f);
+            GL_DrawTexture(bouncerSrc, bouncerDest);
+            sh_texture->Uniform4f("colorMod",1.f,1.f,1.f,1.f);
+            
+            if (input->mouse_just_pressed)
+            {
+                level->bouncers[level->bouncerCount++] = bouncerPos;
                 ConsumeAbility(GetCurrentPlayer());
                 RestoreAfterAbilityUse();
             }
@@ -527,52 +535,38 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     sh_texture->UniformM4fv("model", glm::mat4(1.0));                    
                 }
                 
-            } else if (game_state->ability == ABILITY::CRATER)
+            } else if (game_state->ability == ABILITY::SHANK)
             {
-                iRect cycleLeftDest = {WINDOW_WIDTH/2 - 300 - 64, WINDOW_HEIGHT/2, 64, 128};
-                iRect cycleRightDest = {WINDOW_WIDTH/2 + 300, WINDOW_HEIGHT/2, 64, 128};
-                iRect srcLeft = {144,272,32,32};
-                iRect srcRight = {144,272,32,32};
-                
-                v2i mPos = GetMousePosition();
+                Button left, right;
+                left.bounds = {WINDOW_WIDTH/2 - 300 - 64, WINDOW_HEIGHT/2, 64, 128};
+                left.inactive = {144,272,32,32};
+                left.hover = {176,272,32,32};
+                left.click = {208,272,32,32};
+                right = left;
+                right.bounds = {WINDOW_WIDTH/2 + 300, WINDOW_HEIGHT/2, 64, 128};
                 i32 selectedBall = game_state->abilityState.craterAbility.selectedBall;
-                if (cycleLeftDest.contains(mPos))
+
+                if (DoButton(&left))
                 {
-                    srcLeft.x = 176;
-                    if (input->mouse_just_pressed)
+                    do
                     {
-                        srcLeft.x = 208;
-                        if (input->mouse_just_pressed)
+                        selectedBall--;
+                        if (selectedBall < 0)
                         {
-                            do
-                            {
-                                selectedBall--;
-                                if (selectedBall < 0)
-                                {
-                                    selectedBall = level->ballCount-1;
-                                }
-                            } while (level->balls[selectedBall].active == false);
+                            selectedBall = level->ballCount-1;
                         }
-                    }
+                    } while (level->balls[selectedBall].active == false);
                 }
-                if (cycleRightDest.contains(mPos))
+                if (DoButton(&right))
                 {
-                    srcRight.x = 176;
-                    if (input->mouse_pressed)
+                    do
                     {
-                        srcRight.x = 208;
-                        if (input->mouse_just_pressed)
+                        selectedBall++;
+                        if (selectedBall > level->ballCount-1)
                         {
-                            do
-                            {
-                                selectedBall++;
-                                if (selectedBall > level->ballCount-1)
-                                {
-                                    selectedBall = 0;
-                                }
-                            } while (level->balls[selectedBall].active == false);
+                            selectedBall = 0;
                         }
-                    }
+                    } while (level->balls[selectedBall].active == false);
                 }
                 
                 game_state->abilityState.craterAbility.selectedBall = selectedBall;
@@ -581,44 +575,125 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 local_persist generic_drawable activateText;
                 if (!generatedActivateButton)
                 {
+                    generatedActivateButton = true;
                     activateText = GenerateTextObj(GetFont("res/m5x7.ttf"), "Activate", COLOR_BLACK);
                     activateText.scale = {4.f, 4.f};
                     sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
                 }
+
+                Button activate;
+                activate.bounds = {WINDOW_WIDTH/2 - 128, WINDOW_HEIGHT/2 + 200, 256, 80};
+                activate.inactive = {0, 272, 48, 32};
+                activate.hover = {48, 272, 48, 32};
+                activate.click = {96, 272, 48, 32};
+                if (DoButton(&activate))
+                {
+                    OnAbilityUse(game_state->ability);
+                    ConsumeAbility(GetCurrentPlayer());
+                    RestoreAfterAbilityUse();
+                }
+
                 iRect textBounds = activateText.getDrawRect();
-                iRect buttonDest = {WINDOW_WIDTH/2 - 128, WINDOW_HEIGHT/2 + 200, 256, 80};
-                iRect textDest = {buttonDest.x + buttonDest.w/2 - textBounds.w/2,
-                    buttonDest.y + buttonDest.h/2 - textBounds.h/2 - 8,
+                iRect textDest = {activate.bounds.x + activate.bounds.w/2 - textBounds.w/2,
+                    activate.bounds.y + activate.bounds.h/2 - textBounds.h/2 - 8,
                     textBounds.w,
                     textBounds.h};
-
-                iRect buttonSrc = {0, 272, 48, 32};
-                if (buttonDest.contains(mPos))
+                if (activate.clicking)
                 {
-                    buttonSrc.x = 48;
-                    if (input->mouse_pressed)
-                    {
-                        buttonSrc.x = 96;
-                        textDest.y += 12;
-                        if (input->mouse_just_pressed)
-                        {
-                            OnAbilityUse(game_state->ability);
-                            ConsumeAbility(GetCurrentPlayer());
-                            RestoreAfterAbilityUse();
-                        }
-                    }
+                    textDest.y += 12;
                 }
 
                 sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
-                model = rotate_model_matrix(PIf, cycleLeftDest, {cycleLeftDest.w/2.f, cycleLeftDest.h/2.f});
+                model = rotate_model_matrix(PIf, left.bounds, {left.bounds.w/2.f, left.bounds.h/2.f});
                 sh_texture->UniformM4fv("model", model);
-                GL_DrawTexture(srcLeft, cycleLeftDest);
+                GL_DrawTexture(left.src, left.bounds);
                 sh_texture->UniformM4fv("model", glm::mat4(1.0));
-                GL_DrawTexture(srcRight, cycleRightDest);
+                GL_DrawTexture(right.src, right.bounds);
 
-                GL_DrawTexture(buttonSrc, buttonDest);
+                GL_DrawTexture(activate.src, activate.bounds);
+                sh_texture->Uniform1i("_texture", activateText.gl_texture);
+                GL_DrawTexture(activateText.bound, textDest);
+                
+            } else if (game_state->ability == ABILITY::CRATER)
+            {
+                Button left, right;
+                left.bounds = {WINDOW_WIDTH/2 - 300 - 64, WINDOW_HEIGHT/2, 64, 128};
+                left.inactive = {144,272,32,32};
+                left.hover = {176,272,32,32};
+                left.click = {208,272,32,32};
+                right = left;
+                right.bounds = {WINDOW_WIDTH/2 + 300, WINDOW_HEIGHT/2, 64, 128};
+                i32 selectedBall = game_state->abilityState.craterAbility.selectedBall;
+
+                if (DoButton(&left))
+                {
+                    do
+                    {
+                        selectedBall--;
+                        if (selectedBall < 0)
+                        {
+                            selectedBall = level->ballCount-1;
+                        }
+                    } while (level->balls[selectedBall].active == false);
+                }
+                if (DoButton(&right))
+                {
+                    do
+                    {
+                        selectedBall++;
+                        if (selectedBall > level->ballCount-1)
+                        {
+                            selectedBall = 0;
+                        }
+                    } while (level->balls[selectedBall].active == false);
+                }
+                
+                game_state->abilityState.craterAbility.selectedBall = selectedBall;
+
+                local_persist bool generatedActivateButton = false;
+                local_persist generic_drawable activateText;
+                if (!generatedActivateButton)
+                {
+                    generatedActivateButton = true;
+                    activateText = GenerateTextObj(GetFont("res/m5x7.ttf"), "Activate", COLOR_BLACK);
+                    activateText.scale = {4.f, 4.f};
+                    sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
+                }
+
+                Button activate;
+                activate.bounds = {WINDOW_WIDTH/2 - 128, WINDOW_HEIGHT/2 + 200, 256, 80};
+                activate.inactive = {0, 272, 48, 32};
+                activate.hover = {48, 272, 48, 32};
+                activate.click = {96, 272, 48, 32};
+                if (DoButton(&activate))
+                {
+                    OnAbilityUse(game_state->ability);
+                    ConsumeAbility(GetCurrentPlayer());
+                    RestoreAfterAbilityUse();
+                }
+
+                iRect textBounds = activateText.getDrawRect();
+                iRect textDest = {activate.bounds.x + activate.bounds.w/2 - textBounds.w/2,
+                    activate.bounds.y + activate.bounds.h/2 - textBounds.h/2 - 8,
+                    textBounds.w,
+                    textBounds.h};
+                if (activate.clicking)
+                {
+                    textDest.y += 12;
+                }
+
+
+                sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
+                model = rotate_model_matrix(PIf, left.bounds, {left.bounds.w/2.f, left.bounds.h/2.f});
+                sh_texture->UniformM4fv("model", model);
+                GL_DrawTexture(left.src, left.bounds);
+                sh_texture->UniformM4fv("model", glm::mat4(1.0));
+                GL_DrawTexture(right.src, right.bounds);
+
+                GL_DrawTexture(activate.src, activate.bounds);
                 sh_texture->Uniform1i("_texture", activateText.gl_texture);
                 GL_DrawTexture(activateText.bound, textDest);                
+
             }
         }
 
@@ -642,9 +717,13 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             } else if (ability == ABILITY::HEAVY_WIND)
             {
                 src.x = 192;
-            } else if (ability == ABILITY::SHOOT_THEIR_BALL)
+            } else if (ability == ABILITY::SHANK)
             {
                 src.x = 0;
+                src.y = 208;
+            } else if (ability == ABILITY::PLACE_BOUNCER)
+            {
+                src.x = 48;
                 src.y = 208;
             }
             i32 size = 96;

@@ -40,6 +40,11 @@ struct GameState {
         } craterAbility;
 
         struct
+        {
+            i32 selectedBall = 0;
+        } shankAbility;
+
+        struct
         {            
             float needleRotation;
             float selectionTime;

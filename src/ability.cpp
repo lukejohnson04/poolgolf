@@ -21,6 +21,9 @@ void OnAbilitySelected(i32 ability)
         game_state->abilityState.windAbility.needleRotation = 0.f;
         game_state->abilityState.windAbility.selectionTime = 0.f;
         game_state->abilityState.windAbility.activated = false;
+
+    } else if (ability == ABILITY::SHANK)
+    {
     }
 }
 

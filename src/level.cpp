@@ -29,7 +29,7 @@ void LoadLevelForFirstTime(LevelState *level)
     // load map
     SDL_Surface *mp_surf = IMG_Load("res/levels.png");
 
-    i32 levelNumber = 0;
+    i32 levelNumber = 2;
     
     for (int i=0; i<MAP_SIZE; i++)
     {
@@ -116,6 +116,9 @@ void InitializeNewRound(LevelState *level)
         // Debug initialize test ability
         game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::HEAVY_WIND;
         game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::PLACE_OBSTACLE;
+        game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::SHANK;
+        game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::CRATER;
+        game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::PLACE_BOUNCER;
     }
 }
 

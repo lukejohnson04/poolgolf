@@ -3,14 +3,14 @@ enum ABILITY
 {
     CRATER,
     PLACE_OBSTACLE,
+    PLACE_BOUNCER,
     RETRY,
     HEAVY_WIND,
     MOVE_HOLE,
-    SHOOT_THEIR_BALL,
+    SHANK,
+
     ABILITY_COUNT,
     NONE,
-
-    PLACE_BOUNCER,
 };
 
 void OnAbilitySelected(i32 ability);
