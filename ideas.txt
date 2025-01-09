@@ -56,3 +56,13 @@ Play 9 maps 1 time
 Play 3 maps 3 times
 
 The amount of strokes under par it takes you to get it in is how many items you get
+
+Todo:
+
+Fix ability placement breaking when camera is zoomed
+Make preview line more indicative of shot strength
+Give each player 2 items each round
+Implement prototype togglable power meter mechanic
+Test retry after hitting shot off map
+
+Idea: Everybody places an item at the beginning of the hole

@@ -125,7 +125,6 @@ void InitializeNewRound(LevelState *level)
 
     ProcessCollectedItems();
 
-    /*
     // give all players debug ability
     for (int i=0; i<game_state->playerCount; i++)
     {
@@ -137,7 +136,6 @@ void InitializeNewRound(LevelState *level)
         game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::PLACE_BOUNCER;
         game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::PROTECTION;
     }
-    */
 }
 
 void StartTurn()

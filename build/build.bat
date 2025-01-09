@@ -6,7 +6,7 @@ REM set CommonLinkerFlags= -incremental:no -opt:ref  user32.lib gdi32.lib winmm.
 
 set build=DEBUG
 
-set DebugCompilerFlags= /Zi /Zo /DDEBUG
+set DebugCompilerFlags= /Zo /FC /O2 /Zi /DDEBUG
 set ReleaseCompilerFlags= /O2 /Oi /DRELEASE
 set CommonCompilerFlags= /MP /GR- /EHsc /WX /W4 /wd4201 /wd4100 /wd4189 /wd4505 /wd4127 /wd4702
 set CompilerFlags=

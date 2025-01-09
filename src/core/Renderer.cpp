@@ -10,20 +10,7 @@ const Color COLOR_YELLOW = Color(255,255,0,255);
 const Color COLOR_TRANSPARENT = Color(0,0,0,0);
 
 
-v2i global_draw_offset={0,0};
-
-void GL_PushOffset(v2i offset) {
-    global_draw_offset = offset;
-}
-
-void GL_PopOffset() {
-    global_draw_offset={0,0};
-}
-
-
 void GL_DrawRect(iRect rect) {
-    rect.x += global_draw_offset.x;
-    rect.y += global_draw_offset.y;
 
     float vertices[] = {
         (float)rect.x+rect.w,    (float)rect.y,           0.0f,
@@ -58,9 +45,6 @@ void GL_DrawTexture(iRect source, iRect dest, bool flip_x=false, bool flip_y=fal
     float v1 = 0.0f;
     float v2 = 1.0f;
 
-    dest.x += global_draw_offset.x;
-    dest.y += global_draw_offset.y;
-
     v2i tex_size = {0,0};
     if (source.w!=0) {
         // store this info in some data structure maybe?
@@ -87,6 +71,7 @@ void GL_DrawTexture(iRect source, iRect dest, bool flip_x=false, bool flip_y=fal
     if (!generated) {
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
+        
         generated=true;
     }
     

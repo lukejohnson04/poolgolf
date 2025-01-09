@@ -30,3 +30,4 @@
 #include "Renderer.cpp"
 #include "Random.cpp"
 #include "game_assets.cpp"
+#include "log.cpp"

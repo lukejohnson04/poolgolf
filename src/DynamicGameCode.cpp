@@ -72,7 +72,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         game_state->autocam = !game_state->autocam;
     }
 
-    if (game_state->roundState != GameState::AIMING)
+    if (game_state->roundState == GameState::SHOOTING_MOTION)
     {
         game_state->autocam = true;
     }
@@ -84,7 +84,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             v2 cameraDest = level->balls[game_state->abilityState.craterAbility.selectedBall].pos - v2(WINDOW_WIDTH/2.f, WINDOW_HEIGHT/2.f);
             game_state->camera.pos = Lerp(game_state->camera.pos, cameraDest, 0.05f);
         }
-    } else if (game_state->autocam)
+    } if (game_state->autocam)
     {
         game_state->camera.pos = Lerp(game_state->camera.pos, GetCurrentPlayer()->ball->pos - v2(WINDOW_WIDTH/2.f, WINDOW_HEIGHT/2.f), 0.05f);
     } else
@@ -331,6 +331,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         } else if (game_state->ability == ABILITY::PLACE_BOUNCER)
         {
             v2i bouncerPos = GetMouseWorldPos(&game_state->camera);
+            Log(bouncerPos);
 
             iRect bouncerSrc = {64, 80, 64, 64};
             fRect bouncerDest;

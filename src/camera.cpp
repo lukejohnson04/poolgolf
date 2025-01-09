@@ -44,6 +44,11 @@ glm::mat4 CalculateCameraViewMatrix(Camera *camera)
 v2 GetMouseWorldPos(Camera *camera)
 {
     v2i mPos = GetMousePosition();
-    v2 pos = (v2)mPos + camera->pos;
-    return pos;
+    v2 pos = (v2)mPos;
+    v2 screenCenter = {WINDOW_WIDTH/2.f, WINDOW_HEIGHT/2.f};
+
+    v2 translated = pos - screenCenter;
+    v2 scaled = translated * (1.f/camera->zoom);
+    v2 worldPos = camera->pos + scaled + screenCenter;
+    return worldPos;
 }
