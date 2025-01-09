@@ -63,10 +63,22 @@ void UpdateLevel(LevelState *level, float delta)
         
         if (ball->vel.x != 0 || ball->vel.y != 0) {
             for (int n = 0; n < level->ballCount; n++) {
+                Ball *oball = &level->balls[n];
                 if (n == i) {
                     continue;
                 }
-                BallHandleCollision(ball, &level->balls[n]);
+                if (oball->shielded == false)
+                {                    
+                    BallHandleCollision(ball, oball);
+                }
+                else
+                {
+                    Ball cp = *oball;
+                    cp.mass = 100000000.f;
+                    cp.vel = {0.f, 0.f};
+                    BallHandleCollision(ball, &cp);
+                    level->balls[n].shieldBrokenOnThisShot = true;
+                }
             }
 
             for (int n = 0; n < level->bouncerCount; n++) {

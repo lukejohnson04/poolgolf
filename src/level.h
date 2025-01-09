@@ -35,6 +35,16 @@ struct LevelState
 
     v2 holePos;
     bool shotAlready=false;
+    i32 par = 5;
 };
 
 void LoadLevelForFirstTime(LevelState *level);
+
+void ProcessCollectedItems();
+internal bool IsBallOnSpawnTile(LevelState *level, v2 pos);
+
+void StartTurn();
+void FinishTurn();
+void OnBallsStopMoving();
+i32 GetUnfinishedPlayers();
+

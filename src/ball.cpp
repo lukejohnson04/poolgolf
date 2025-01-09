@@ -198,7 +198,6 @@ void UpdateBall(Ball *ball, LevelState *level, float delta)
         if (distSq <= (r * r))
         {
             // collision
-            printf("Collision\n");
             v2 clampedPointWorld = V2Rotate(clamped, obstacleRot);
             clampedPointWorld += obstacle.pos;
 

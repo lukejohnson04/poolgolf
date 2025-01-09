@@ -24,6 +24,11 @@ void OnAbilitySelected(i32 ability)
 
     } else if (ability == ABILITY::SHANK)
     {
+    } else if (ability == ABILITY::PROTECTION)
+    {
+        GetCurrentPlayer()->ball->shielded = true;
+        ConsumeAbility(GetCurrentPlayer());
+        SetRoundState(GetRoundState(1));
     }
 }
 

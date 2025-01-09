@@ -6,12 +6,16 @@ enum ABILITY
     PLACE_BOUNCER,
     RETRY,
     HEAVY_WIND,
-    MOVE_HOLE,
-    SHANK,
+    PROTECTION,
 
     ABILITY_COUNT,
+
+    MOVE_HOLE,
+    SHANK,
     NONE,
 };
+
+const i32 MAX_ABILITIES = 16;
 
 void OnAbilitySelected(i32 ability);
 void OnAbilityUse(i32 ability);

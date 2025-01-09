@@ -44,13 +44,14 @@ void ControlCueStick(float delta)
         }
 
         level->cueRotSpeed = cueRotSpeed;
+        float cuePowerSpeed = 75.f * cueRotSpeed;
 
         if (input->is_pressed[SDL_SCANCODE_S]) {
-            level->cuePower += 100.f * delta;
+            level->cuePower += cuePowerSpeed * delta;
         }
 
         if (input->is_pressed[SDL_SCANCODE_W]) {
-            level->cuePower -= 100.f * delta;
+            level->cuePower -= cuePowerSpeed * delta;
         }
 
         level->cuePower = CLAMP(1.f, 100.f, level->cuePower);

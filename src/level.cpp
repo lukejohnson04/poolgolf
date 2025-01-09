@@ -91,25 +91,41 @@ void InitializeNewRound(LevelState *level)
     if (game_state->round == 1)
     {
         game_state->currentPlayer = 0;
-    } else
-    {
-        i32 mostStrokes = 0;
-        i32 playerWithMostStrokes = 0;
         for (int i=0; i<game_state->playerCount; i++)
         {
-            BallInit(game_state->players[i].ball);
-            game_state->players[i].madeBallOnCurrentRound = false;
-            game_state->players[i].ball->pos = level->ballSpawnPosition;
-            if (playerWithMostStrokes == 0 ||
-                game_state->players[i].strokeCount > mostStrokes)
+            game_state->players[i].unprocessedItems = 1;
+        }
+    } else
+    {
+        i32 mostScore = 0;
+        i32 playerWithMostScore = 0;
+        for (int i=0; i<game_state->playerCount; i++)
+        {
+            PlayerData *player = &game_state->players[i];
+            BallInit(player->ball);
+            player->ball->pos = level->ballSpawnPosition;
+            player->madeBallOnCurrentRound = false;
+            // Give each player items corresponding to how many strokes under par they were
+            i32 gainedItems = MAX(1, level->par - player->strokeCount + 1);
+            player->unprocessedItems += gainedItems;
+            printf("Player %d gained %d items\n", player->id, gainedItems);
+            
+            player->score += player->strokeCount;
+            ChangeStrokes(player, 0);
+            
+            if (playerWithMostScore == 0 ||
+                player->score > mostScore)
             {
-                playerWithMostStrokes = i;
-                mostStrokes = game_state->players[i].strokeCount;
+                playerWithMostScore = i;
+                mostScore = player->score;
             }
         }
-        game_state->currentPlayer = playerWithMostStrokes;
+        game_state->currentPlayer = playerWithMostScore;
     }
 
+    ProcessCollectedItems();
+
+    /*
     // give all players debug ability
     for (int i=0; i<game_state->playerCount; i++)
     {
@@ -119,7 +135,9 @@ void InitializeNewRound(LevelState *level)
         game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::SHANK;
         game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::CRATER;
         game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::PLACE_BOUNCER;
+        game_state->players[i].abilities[game_state->players[i].abilityCount++] = ABILITY::PROTECTION;
     }
+    */
 }
 
 void StartTurn()
@@ -130,8 +148,6 @@ void StartTurn()
     level->shotAlready = false;
     AbilityCodeForWhenTurnStarts();
 }
-
-void FinishTurn();
 
 void ProcessCollectedItems()
 {
@@ -167,15 +183,27 @@ i32 GetUnfinishedPlayers()
 
 void OnBallsStopMoving()
 {
+    for (i32 i=0; i<game_state->level.ballCount; i++)
+    {
+        Ball *ball = &game_state->level.balls[i];
+        if (ball->shieldBrokenOnThisShot)
+        {
+            ball->shielded = false;
+            ball->shieldBrokenOnThisShot = false;
+        }
+    }
+
     ProcessCollectedItems();
     i32 stillPlaying = GetUnfinishedPlayers();
 
+        
     if (stillPlaying == 0)
     {
         InitializeNewRound(&game_state->level);
         StartTurn();
         return;
     }
+
 
     if (GetPreviousRoundState() == GameState::USE_ABILITY)
     {

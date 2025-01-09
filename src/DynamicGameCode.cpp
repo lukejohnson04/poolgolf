@@ -28,9 +28,10 @@ TILE_TYPE craterPattern[7][7];
 #include "ball.h"
 #include "camera.cpp"
 
-#include "player.cpp"
 #include "level.h"
+#include "player.h"
 #include "game_state.h"
+#include "player.cpp"
 #include "level.cpp"
 #include "game_state.cpp"
 #include "ball.cpp"
@@ -366,12 +367,22 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             continue;
         }
         
-        iRect src = {0,0,32,32};        
-        GL_DrawTexture(src,{
+        iRect src = {0,0,32,32};
+        iRect dest = {
                 (i32)ball->left(),
                 (i32)ball->top(),
                 (i32)(ball->radius*2.f),
-                (i32)(ball->radius*2.f)});
+                (i32)(ball->radius*2.f)};
+        if (ball->shielded)
+        {
+            sh_texture->Uniform4f("colorMod",0.5f,0.6f,1.f,1.f);
+            GL_DrawTexture(src,dest);
+            sh_texture->Uniform4f("colorMod",1.f,1.f,1.f,1.f);
+        }
+        else
+        {
+            GL_DrawTexture(src,dest);
+        }
     }
 
     // Draw item drops
@@ -532,7 +543,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     GL_DrawTexture(compassSrc, compassDest);
                     sh_texture->UniformM4fv("model", needleRotationMatrix);
                     GL_DrawTexture(needleSrc, needleDest);
-                    sh_texture->UniformM4fv("model", glm::mat4(1.0));                    
+                    sh_texture->UniformM4fv("model", glm::mat4(1.0));
                 }
                 
             } else if (game_state->ability == ABILITY::SHANK)
@@ -725,6 +736,10 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
             {
                 src.x = 48;
                 src.y = 208;
+            } else if (ability == ABILITY::PROTECTION)
+            {
+                src.x = 96;
+                src.y = 208;
             }
             i32 size = 96;
             iRect dest = {WINDOW_WIDTH - 24 - (size + 24) *(i+1), 32, size, size};
@@ -780,41 +795,6 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     sh_texture->Uniform1i("_texture",debugText.gl_texture);
     GL_DrawTexture(debugText.bound, debugText.getDrawRect());
     sh_texture->Uniform1i("_texture",GetTexture("res/sprites.png"));
-
-    // Render move ball button
-    /*
-    local_persist bool generateMoveBallButton = false;
-    local_persist generic_drawable moveBallText;
-    if (!generateMoveBallButton)
-    {
-        moveBallText = GenerateTextObj(GetFont("res/m5x7.ttf"), "MOVE BALL", COLOR_BLACK);
-        moveBallText.scale = {2.f, 2.f};
-    }
-
-    iRect textBounds = moveBallText.getDrawRect();
-    iRect buttonDest = {32, 32, 128, 64};
-    iRect textDest = {buttonDest.x + buttonDest.w/2 - textBounds.w/2,
-        buttonDest.y + buttonDest.h/2 - textBounds.h/2 - 8,
-        textBounds.w,
-        textBounds.h};
-
-    iRect buttonSrc = {0, 272, 48, 32};
-    v2i mPos = GetMousePosition();
-    if (buttonDest.contains(mPos))
-    {
-        buttonSrc.x = 48;
-        if (input->mouse_pressed)
-        {
-            buttonSrc.x = 96;
-            textDest.y += 12;
-        }
-    }
-
-    sh_texture->Uniform1i("_texture", GetTexture("res/sprites.png"));
-    GL_DrawTexture(buttonSrc, buttonDest);
-    sh_texture->Uniform1i("_texture", moveBallText.gl_texture);
-    GL_DrawTexture(moveBallText.bound, textDest);
-    */
     
     SDL_GL_SwapWindow(window);
 }

@@ -54,3 +54,5 @@ wins the most maps wins.
 Play 1 map 9 times
 Play 9 maps 1 time
 Play 3 maps 3 times
+
+The amount of strokes under par it takes you to get it in is how many items you get

@@ -13,6 +13,9 @@ struct Ball
     bool active=false;
     bool falling=false;
     bool fallingInHole=false;
+    bool shielded=false;
+    bool shieldBrokenOnThisShot=false;
+    
     float fallTimer=0.f;
 
     float left() {
